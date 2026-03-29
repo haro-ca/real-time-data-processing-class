@@ -1,14 +1,14 @@
-# Lesson 10 — Real-time OLAP: serving the results
+# Lesson 10, Real-time OLAP: serving the results
 
-Lessons 1-3 established the OLTP/OLAP duality. Lessons 4-9 built the pipeline to move data between them — CDC, Kafka, stream processing. Now the question changes: **where do the analytical results live, and how do you serve them fast enough that a dashboard user doesn't notice the data is 2 seconds old?**
+Lessons 1-3 established the OLTP/OLAP duality. Lessons 4-9 built the pipeline to move data between them, CDC, Kafka, stream processing. Now the question changes: **where do the analytical results live, and how do you serve them fast enough that a dashboard user doesn't notice the data is 2 seconds old?**
 
-DuckDB is excellent for analytical queries. But DuckDB is an embedded engine — it reads files, it runs in-process, and it has no concept of concurrent ingestion while serving queries. If your pipeline produces a Parquet file every 5 minutes and DuckDB reads it, your dashboard is 5 minutes stale. For many use cases that's fine. For the use cases that drove you to build a streaming pipeline in the first place, it's not.
+DuckDB is excellent for analytical queries. But DuckDB is an embedded engine, it reads files, it runs in-process, and it has no concept of concurrent ingestion while serving queries. If your pipeline produces a Parquet file every 5 minutes and DuckDB reads it, your dashboard is 5 minutes stale. For many use cases that's fine. For the use cases that drove you to build a streaming pipeline in the first place, it's not.
 
-Real-time OLAP engines — ClickHouse, Apache Pinot, Apache Druid — solve a specific problem: **continuous ingestion of streaming data with sub-second analytical query latency, simultaneously.** This lesson makes that concrete.
+Real-time OLAP engines, ClickHouse, Apache Pinot, Apache Druid, solve a specific problem: **continuous ingestion of streaming data with sub-second analytical query latency, simultaneously.** This lesson makes that concrete.
 
-## Hour 1 — Theory: the architecture of real-time OLAP
+## Hour 1, Theory: the architecture of real-time OLAP
 
-### Module A — Pre-aggregation vs. on-the-fly computation
+### Module A, Pre-aggregation vs. on-the-fly computation
 
 There are two ways to serve analytical results quickly:
 
@@ -20,9 +20,9 @@ Real systems use both. ClickHouse materialized views pre-aggregate hot paths (e.
 
 **Key insight:** pre-aggregation is a space-time tradeoff with an operational tax. Every materialized view is another thing that can break, drift out of sync, or silently return stale data. The faster your OLAP engine is at raw scans, the less pre-aggregation you need, and the simpler your system becomes.
 
-### Module B — Materialized views in ClickHouse
+### Module B, Materialized views in ClickHouse
 
-ClickHouse materialized views are not what Postgres calls materialized views. In Postgres, a materialized view is a cached query result you `REFRESH` manually. In ClickHouse, a materialized view is a **trigger on INSERT** — when data arrives in the source table, the materialized view's query runs on the new rows and writes the result to a destination table. It's incremental, continuous, and automatic.
+ClickHouse materialized views are not what Postgres calls materialized views. In Postgres, a materialized view is a cached query result you `REFRESH` manually. In ClickHouse, a materialized view is a **trigger on INSERT**, when data arrives in the source table, the materialized view's query runs on the new rows and writes the result to a destination table. It's incremental, continuous, and automatic.
 
 ```sql
 -- Source table: raw events
@@ -66,7 +66,7 @@ ORDER BY minute;
 
 Or use `SELECT ... FROM revenue_per_minute FINAL`, which forces merge-on-read at query time (slower, but correct without the outer aggregation). This is a gotcha that trips up every ClickHouse beginner and matters in production.
 
-### Module C — How real-time OLAP engines differ from batch OLAP
+### Module C, How real-time OLAP engines differ from batch OLAP
 
 DuckDB and Snowflake are excellent at analytics on static data. They assume the data is loaded, then queried. Their architecture reflects this:
 
@@ -85,33 +85,33 @@ Real-time OLAP engines are architecturally different because they optimize for a
 
 The three major real-time OLAP engines each have a distinct personality:
 
-- **ClickHouse**: column-oriented, MergeTree storage engine, SQL-native. Extremely fast on raw scans. The most "database-like" of the three — it feels like a fast Postgres for analytics. Strongest at ad-hoc analytical queries. Written in C++, obsessively optimized.
-- **Apache Druid**: designed for time-series at scale. Pre-ingestion rollup is core to its architecture — it can aggregate at ingestion time, reducing storage. Segment-based storage with deep integration into the Kafka/HDFS ecosystem. Best when you know your query patterns upfront and want to push aggregation as early as possible.
+- **ClickHouse**: column-oriented, MergeTree storage engine, SQL-native. Extremely fast on raw scans. The most "database-like" of the three, it feels like a fast Postgres for analytics. Strongest at ad-hoc analytical queries. Written in C++, obsessively optimized.
+- **Apache Druid**: designed for time-series at scale. Pre-ingestion rollup is core to its architecture, it can aggregate at ingestion time, reducing storage. Segment-based storage with deep integration into the Kafka/HDFS ecosystem. Best when you know your query patterns upfront and want to push aggregation as early as possible.
 - **Apache Pinot**: LinkedIn's real-time analytics engine. Similar to Druid architecturally but with a stronger focus on user-facing analytics (high QPS, low latency). Star-tree indexes for pre-aggregated queries. Best when you need to serve thousands of concurrent dashboard users.
 
 We use ClickHouse in this lesson because it's the most general-purpose and has the lowest barrier to a meaningful practical exercise. It speaks SQL, runs in a single Docker container, and has native Kafka integration.
 
-### Module D — LSM trees in an OLAP context
+### Module D, LSM trees in an OLAP context
 
 Students have seen LSM trees if they've touched RocksDB (Lesson 8's state backend). In OLAP, the same principle appears with a different accent.
 
 ClickHouse's MergeTree engine works like this:
 
 1. **Incoming data** is written to an in-memory buffer (or directly to a small "part" on disk).
-2. Each **part** is a self-contained unit: column files, a primary index (sparse — one entry per 8192 rows by default, called a "granule"), and metadata. Parts are immutable once written.
-3. A background process continuously **merges** smaller parts into larger ones — compacting, re-sorting by the `ORDER BY` key, and applying more aggressive compression.
+2. Each **part** is a self-contained unit: column files, a primary index (sparse, one entry per 8192 rows by default, called a "granule"), and metadata. Parts are immutable once written.
+3. A background process continuously **merges** smaller parts into larger ones, compacting, re-sorting by the `ORDER BY` key, and applying more aggressive compression.
 
-This is an LSM-tree variant. The write path is fast because it's append-only — no random I/O, no rewriting existing data. The read path must potentially scan multiple parts (each with its own index), but merging keeps the number of parts manageable.
+This is an LSM-tree variant. The write path is fast because it's append-only, no random I/O, no rewriting existing data. The read path must potentially scan multiple parts (each with its own index), but merging keeps the number of parts manageable.
 
-The merge process is also where `SummingMergeTree`, `AggregatingMergeTree`, and `ReplacingMergeTree` do their work — they apply custom merge logic (summing, aggregating, deduplicating) during compaction. This is why ClickHouse's specialized engines exist: they encode domain-specific merge semantics into the storage layer.
+The merge process is also where `SummingMergeTree`, `AggregatingMergeTree`, and `ReplacingMergeTree` do their work, they apply custom merge logic (summing, aggregating, deduplicating) during compaction. This is why ClickHouse's specialized engines exist: they encode domain-specific merge semantics into the storage layer.
 
-**The tradeoff:** write amplification. Each row is written once, then re-written during each merge level. A row might be physically written 3-5 times before it reaches its final merged state. This is fine for OLAP — you're optimizing for read throughput, not write efficiency. But it means ClickHouse needs more disk bandwidth than a naive "data size / throughput" calculation suggests.
+**The tradeoff:** write amplification. Each row is written once, then re-written during each merge level. A row might be physically written 3-5 times before it reaches its final merged state. This is fine for OLAP, you're optimizing for read throughput, not write efficiency. But it means ClickHouse needs more disk bandwidth than a naive "data size / throughput" calculation suggests.
 
-### Module E — Ingestion latency vs. query latency: the fundamental tradeoff
+### Module E, Ingestion latency vs. query latency: the fundamental tradeoff
 
 This is the conceptual core of the lesson.
 
-**Ingestion latency:** how long after an event occurs before it's queryable. In ClickHouse, data inserted via `INSERT` is queryable immediately (it's in a part on disk). Data from Kafka via the Kafka engine is queryable after the next poll-and-flush cycle — typically 1-5 seconds.
+**Ingestion latency:** how long after an event occurs before it's queryable. In ClickHouse, data inserted via `INSERT` is queryable immediately (it's in a part on disk). Data from Kafka via the Kafka engine is queryable after the next poll-and-flush cycle, typically 1-5 seconds.
 
 **Query latency:** how long a query takes to return. This depends on how much data it scans, how many parts exist (more parts = more overhead per query), and whether a materialized view pre-aggregated the answer.
 
@@ -127,7 +127,7 @@ For a dashboard that refreshes every 5 seconds, an ingestion latency of 2-3 seco
 
 ---
 
-## Hour 2 — Practical: ClickHouse + Kafka + FastAPI
+## Hour 2, Practical: ClickHouse + Kafka + FastAPI
 
 ### Setup (15 min)
 
@@ -140,7 +140,7 @@ Provide a Docker Compose file that brings up:
 Students should already have a Kafka topic with streaming events from previous lessons. If not, provide a simple python producer that generates synthetic e-commerce events:
 
 ```python
-# event_producer.py — generates synthetic events for students who
+# event_producer.py, generates synthetic events for students who
 # don't have the pipeline from earlier lessons running
 import json
 import time
@@ -170,7 +170,7 @@ while True:
 
 Run this in the background. Students should verify events are flowing with `kafka-console-consumer`.
 
-### Phase 1 — ClickHouse tables and Kafka ingestion (25 min)
+### Phase 1, ClickHouse tables and Kafka ingestion (25 min)
 
 Students create the ClickHouse tables. This is where they wire the Kafka stream into ClickHouse.
 
@@ -191,8 +191,8 @@ SETTINGS index_granularity = 8192;
 
 Walk through the design decisions:
 
-- **`LowCardinality(String)`**: ClickHouse's dictionary encoding. For columns with few distinct values (`event_type` has 4, `region` has 5), this reduces storage and speeds up GROUP BY dramatically. This is the equivalent of what DuckDB does automatically — in ClickHouse you declare it.
-- **`ORDER BY (event_type, region, event_time)`**: this determines the physical sort order on disk and the sparse primary index. Queries that filter on `event_type` or `region` first will benefit from index granule skipping. If students mostly query by time range, `ORDER BY (event_time, event_type, region)` would be better. The choice depends on the query pattern — make them think about this.
+- **`LowCardinality(String)`**: ClickHouse's dictionary encoding. For columns with few distinct values (`event_type` has 4, `region` has 5), this reduces storage and speeds up GROUP BY dramatically. This is the equivalent of what DuckDB does automatically, in ClickHouse you declare it.
+- **`ORDER BY (event_type, region, event_time)`**: this determines the physical sort order on disk and the sparse primary index. Queries that filter on `event_type` or `region` first will benefit from index granule skipping. If students mostly query by time range, `ORDER BY (event_time, event_type, region)` would be better. The choice depends on the query pattern, make them think about this.
 - **`PARTITION BY toYYYYMMDD(event_time)`**: each day gets its own partition (set of parts). Dropping old data is a partition drop, not a DELETE. Queries filtered to a single day skip all other partitions entirely.
 
 **Step 2: Create the Kafka engine table.**
@@ -214,7 +214,7 @@ SETTINGS
     kafka_poll_timeout_ms = 1000;
 ```
 
-The Kafka engine table is not a real table — you don't query it directly. It's a consumer that pulls from Kafka. Data flows through it but isn't stored here.
+The Kafka engine table is not a real table, you don't query it directly. It's a consumer that pulls from Kafka. Data flows through it but isn't stored here.
 
 **Step 3: Create the materialized view that bridges them.**
 
@@ -229,7 +229,7 @@ SELECT
 FROM events_kafka;
 ```
 
-When ClickHouse polls Kafka and gets a batch of messages, the materialized view transforms them and inserts into the `events` table. This is the ingestion pipeline — no external consumer code needed.
+When ClickHouse polls Kafka and gets a batch of messages, the materialized view transforms them and inserts into the `events` table. This is the ingestion pipeline, no external consumer code needed.
 
 Students should verify data is flowing:
 
@@ -264,7 +264,7 @@ WHERE event_type = 'purchase'
 GROUP BY minute, region;
 ```
 
-Note the `-State` and `-Merge` suffix pattern. `sumState()` stores a partial aggregate that `sumMerge()` combines at query time. `uniqState()` stores HyperLogLog sketches that `uniqMerge()` combines. This is how ClickHouse handles the "partial aggregates from different insert batches" problem correctly — it stores intermediate state, not final values.
+Note the `-State` and `-Merge` suffix pattern. `sumState()` stores a partial aggregate that `sumMerge()` combines at query time. `uniqState()` stores HyperLogLog sketches that `uniqMerge()` combines. This is how ClickHouse handles the "partial aggregates from different insert batches" problem correctly, it stores intermediate state, not final values.
 
 Query the pre-aggregated table:
 
@@ -281,14 +281,14 @@ GROUP BY minute, region
 ORDER BY minute DESC, region;
 ```
 
-### Phase 2 — Build the dashboard query layer (25 min)
+### Phase 2, Build the dashboard query layer (25 min)
 
-The instructor provides a FastAPI skeleton with the HTTP endpoints, error handling, and CORS already wired. Students fill in the ClickHouse queries and connection logic. They should not be spending time on API boilerplate — the learning objective is the ClickHouse query layer, not FastAPI.
+The instructor provides a FastAPI skeleton with the HTTP endpoints, error handling, and CORS already wired. Students fill in the ClickHouse queries and connection logic. They should not be spending time on API boilerplate, the learning objective is the ClickHouse query layer, not FastAPI.
 
 **Instructor-provided skeleton** (students receive this):
 
 ```python
-# app.py — FastAPI dashboard backend
+# app.py, FastAPI dashboard backend
 # Students: implement the three functions marked with TODO
 import time
 from contextlib import asynccontextmanager
@@ -382,7 +382,7 @@ def _query_revenue_by_region(minutes: int) -> list[dict]:
 
 
 def _query_throughput(minutes: int) -> list[dict]:
-    """Query raw events table — no pre-aggregation."""
+    """Query raw events table, no pre-aggregation."""
     query = """
         SELECT
             toStartOfMinute(event_time) AS minute,
@@ -400,7 +400,7 @@ def _query_throughput(minutes: int) -> list[dict]:
 
 
 def _query_top_users(minutes: int, limit: int) -> list[dict]:
-    """Ad-hoc query on raw events — demonstrates on-the-fly aggregation."""
+    """Ad-hoc query on raw events, demonstrates on-the-fly aggregation."""
     query = """
         SELECT
             user_id,
@@ -434,9 +434,9 @@ Every response includes `query_ms`. Students should observe:
 - `/api/throughput` (raw scan, narrow time range): low tens of milliseconds. ClickHouse is scanning raw events but the columnar engine is fast enough.
 - `/api/top-users` (raw scan with high-cardinality GROUP BY): tens of milliseconds, potentially more as data grows.
 
-**Key observation:** all three endpoints return sub-second while the Kafka consumer is continuously inserting data. This is the point — concurrent ingestion and querying, both fast.
+**Key observation:** all three endpoints return sub-second while the Kafka consumer is continuously inserting data. This is the point, concurrent ingestion and querying, both fast.
 
-### Phase 3 — Compare against DuckDB batch-loaded (20 min)
+### Phase 3, Compare against DuckDB batch-loaded (20 min)
 
 This is where the real-time OLAP value proposition becomes concrete. Students export the last 10 minutes of events from ClickHouse to a Parquet file, then query it in DuckDB:
 
@@ -454,7 +454,7 @@ result = ch.query("SELECT * FROM events WHERE event_time >= now() - INTERVAL 10 
 # Write to Parquet via DuckDB (the irony is intentional)
 duck = duckdb.connect()
 duck.execute("CREATE TABLE events AS SELECT * FROM result.result_rows")  # simplified
-# In practice, students should write a proper export — the point is the workflow
+# In practice, students should write a proper export, the point is the workflow
 
 # Now query DuckDB
 start = time.perf_counter()
@@ -490,11 +490,11 @@ ch_ms = (time.perf_counter() - start) * 1000
 print(f"ClickHouse query: {ch_ms:.1f} ms")
 ```
 
-**Expected result on a small dataset (10 minutes, ~600k events):** DuckDB and ClickHouse raw query times will be comparable — both are columnar engines, both are fast. DuckDB might even be faster on a small in-memory dataset because it has zero network overhead (in-process).
+**Expected result on a small dataset (10 minutes, ~600k events):** DuckDB and ClickHouse raw query times will be comparable, both are columnar engines, both are fast. DuckDB might even be faster on a small in-memory dataset because it has zero network overhead (in-process).
 
 This is the honest answer: **for small, static datasets, DuckDB wins on simplicity.** The difference emerges when students consider:
 
-1. **The export step itself took time.** That's your ingestion latency in a batch workflow — you're always querying stale data.
+1. **The export step itself took time.** That's your ingestion latency in a batch workflow, you're always querying stale data.
 2. **The export is a point-in-time snapshot.** Events that arrived during the export aren't included. In ClickHouse, they're queryable within seconds.
 3. **At scale (billions of rows, hundreds of concurrent queries), DuckDB's single-process model doesn't serve a dashboard.** ClickHouse handles concurrent queries as a server.
 
@@ -502,9 +502,9 @@ Students should write a paragraph in their deliverable articulating this tradeof
 
 ---
 
-## Hour 3 — Measure, tune, and stress-test
+## Hour 3, Measure, tune, and stress-test
 
-### Experiment A — Measure ingestion latency (15 min)
+### Experiment A, Measure ingestion latency (15 min)
 
 How fresh is the data? Students measure the gap between event generation and queryability:
 
@@ -549,7 +549,7 @@ Run this 10 times. Report the distribution. Typical result: 1-5 seconds dependin
 
 Then tune: decrease `kafka_max_block_size` to 1000 and re-measure. Latency should drop, but students should also check the number of parts being created (`SELECT count() FROM system.parts WHERE table = 'events' AND active`). More frequent flushes = more parts = more merge work.
 
-### Experiment B — Query latency under concurrent ingestion (20 min)
+### Experiment B, Query latency under concurrent ingestion (20 min)
 
 The real test: does query latency degrade while ingestion is running at full speed?
 
@@ -590,11 +590,11 @@ async def main():
 asyncio.run(main())
 ```
 
-Students run this with the producer at ~1000 events/sec (baseline) and then crank the producer to 10,000 events/sec (remove the `sleep` or reduce it). Does query latency change? It shouldn't, meaningfully — ClickHouse's MergeTree isolates reads and writes well at this scale.
+Students run this with the producer at ~1000 events/sec (baseline) and then crank the producer to 10,000 events/sec (remove the `sleep` or reduce it). Does query latency change? It shouldn't, meaningfully, ClickHouse's MergeTree isolates reads and writes well at this scale.
 
 If query latency *does* degrade, the likely cause is excessive part creation overwhelming the merge scheduler. Students should check `system.merges` and `system.parts` to diagnose.
 
-### Experiment C — The ORDER BY key matters (15 min)
+### Experiment C, The ORDER BY key matters (15 min)
 
 Create a second table with a different sort order:
 
@@ -635,9 +635,9 @@ WHERE user_id = 42;
 
 Use `EXPLAIN indexes = 1` to see how many granules are scanned vs. skipped. The table whose `ORDER BY` matches the query filter will skip dramatically more granules.
 
-**Key insight:** the `ORDER BY` key in ClickHouse is not just a sort preference — it's the primary index. Choosing it wrong can mean the difference between scanning 100 granules and 100,000. This is the ClickHouse equivalent of choosing the right index in Postgres, but it's a table-level decision, not an afterthought. You pick it once, based on your dominant query pattern.
+**Key insight:** the `ORDER BY` key in ClickHouse is not just a sort preference, it's the primary index. Choosing it wrong can mean the difference between scanning 100 granules and 100,000. This is the ClickHouse equivalent of choosing the right index in Postgres, but it's a table-level decision, not an afterthought. You pick it once, based on your dominant query pattern.
 
-### Final 10 minutes — Synthesis discussion
+### Final 10 minutes, Synthesis discussion
 
 Put up the comparison:
 
@@ -653,7 +653,7 @@ The key question for students: **what is the minimum data freshness SLA that jus
 
 There's no universal answer. If your dashboard updates every 15 minutes and has one viewer, DuckDB with a cron job is simpler and cheaper. If your dashboard updates every 5 seconds and serves 50 concurrent users, you need a real-time OLAP engine. The boundary is somewhere in between, and it depends on operational maturity as much as technical requirements.
 
-The broader point: every component in this pipeline — CDC, Kafka, stream processing, real-time OLAP — adds operational cost. The course teaches you how to build all of it so you can make an informed decision about how much of it you actually need.
+The broader point: every component in this pipeline, CDC, Kafka, stream processing, real-time OLAP, adds operational cost. The course teaches you how to build all of it so you can make an informed decision about how much of it you actually need.
 
 ---
 
@@ -667,6 +667,6 @@ A GitHub repository containing:
   - Query latency under concurrent ingestion (p50/p95/p99 from the load test)
   - The `ORDER BY` key experiment results with `EXPLAIN` output
   - A comparison paragraph: when to use ClickHouse vs. DuckDB for their specific workload, with data to back it up
-- **`AGENTS.md` or `CLAUDE.md`**: instructions for an AI coding assistant to understand the project structure, run tests, and extend the query layer. This is practice for the real world — projects should be legible to both humans and AI agents.
+- **`AGENTS.md` or `CLAUDE.md`**: instructions for an AI coding assistant to understand the project structure, run tests, and extend the query layer. This is practice for the real world, projects should be legible to both humans and AI agents.
 
-Submit via pull request. AI assistance is encouraged — the deliverable is the analysis and the working system, not proof that you typed every character yourself.
+Submit via pull request. AI assistance is encouraged, the deliverable is the analysis and the working system, not proof that you typed every character yourself.

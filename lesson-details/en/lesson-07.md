@@ -1,4 +1,4 @@
-# Lesson 7 — Stream processing I: stateless transformations and windowing
+# Lesson 7, Stream processing I: stateless transformations and windowing
 
 Lessons 5 and 6 built the plumbing: CDC captures changes from the OLTP source, Kafka durably transports them. But Kafka is just a pipe. The events sit in topics, waiting for something to actually compute over them. That "something" is a stream processor. This lesson is where students stop moving data and start transforming it in flight.
 

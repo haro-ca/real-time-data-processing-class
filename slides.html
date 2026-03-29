@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Procesamiento de Datos en Tiempo Real</title>
+
+<!-- Fonts: Fraunces (display) + Work Sans (body) — Vintage Editorial preset -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=Work+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   CSS CUSTOM PROPERTIES — VINTAGE EDITORIAL THEME
+   ============================================================ */
+:root {
+  --bg-cream:       #f5f3ee;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #555;
+  --text-faint:     #999;
+  --accent-red:     #c5401e;
+  --accent-warm:    #e8d4c0;
+  --border-color:   rgba(26, 26, 26, 0.12);
+
+  --title-size:    clamp(2rem, 6vw, 5.5rem);
+  --h2-size:       clamp(1.4rem, 3.5vw, 3rem);
+  --body-size:     clamp(0.78rem, 1.45vw, 1.05rem);
+  --small-size:    clamp(0.62rem, 1vw, 0.82rem);
+  --label-size:    clamp(0.55rem, 0.9vw, 0.72rem);
+
+  --slide-padding: clamp(1.2rem, 4vw, 4rem);
+  --content-gap:   clamp(0.6rem, 1.8vw, 1.6rem);
+  --element-gap:   clamp(0.3rem, 0.8vw, 0.8rem);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   VIEWPORT BASE — MANDATORY
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+.slide {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+img, .image-container {
+  max-width: 100%;
+  max-height: min(50vh, 400px);
+  object-fit: contain;
+}
+
+@media (max-height: 700px) {
+  :root {
+    --slide-padding: clamp(0.6rem, 2.5vw, 1.8rem);
+    --content-gap: clamp(0.4rem, 1.2vw, 0.9rem);
+    --title-size: clamp(1.5rem, 4.5vw, 3rem);
+    --h2-size: clamp(1.1rem, 2.8vw, 2rem);
+  }
+}
+
+@media (max-height: 600px) {
+  :root {
+    --slide-padding: clamp(0.4rem, 2vw, 1.2rem);
+    --content-gap: clamp(0.3rem, 0.9vw, 0.6rem);
+    --title-size: clamp(1.2rem, 4vw, 2.2rem);
+    --body-size: clamp(0.65rem, 1.1vw, 0.88rem);
+  }
+  .nav-dots, .keyboard-hint, .decorative { display: none; }
+}
+
+@media (max-height: 500px) {
+  :root {
+    --slide-padding: clamp(0.3rem, 1.5vw, 0.8rem);
+    --title-size: clamp(1rem, 3.5vw, 1.5rem);
+    --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+    --body-size: clamp(0.62rem, 1vw, 0.8rem);
+  }
+}
+
+@media (max-width: 600px) {
+  :root { --title-size: clamp(1.5rem, 7vw, 2.8rem); }
+  .stack-grid, .format-cols { grid-template-columns: 1fr 1fr; }
+  .deliverable-layout, .problema-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.2s !important;
+  }
+  html { scroll-behavior: auto; }
+}
+
+/* ============================================================
+   BASE LAYOUT
+   ============================================================ */
+body {
+  background: var(--bg-cream);
+  font-family: 'Work Sans', sans-serif;
+}
+
+.slide {
+  background: var(--bg-cream);
+  padding: var(--slide-padding);
+  justify-content: space-between;
+}
+
+/* ============================================================
+   GEOMETRIC DECORATIONS — CSS only, no illustrations
+   ============================================================ */
+.geo {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.geo-circle {
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+}
+
+/* Positions */
+.geo-tr {
+  top: calc(-1 * clamp(40px, 8vw, 100px));
+  right: calc(-1 * clamp(40px, 8vw, 100px));
+  width: clamp(140px, 25vw, 320px);
+  height: clamp(140px, 25vw, 320px);
+}
+
+.geo-bl {
+  bottom: calc(-1 * clamp(40px, 8vw, 100px));
+  left: calc(-1 * clamp(40px, 8vw, 100px));
+  width: clamp(120px, 22vw, 280px);
+  height: clamp(120px, 22vw, 280px);
+}
+
+.geo-br {
+  bottom: calc(-1 * clamp(30px, 6vw, 80px));
+  right: calc(-1 * clamp(30px, 6vw, 80px));
+  width: clamp(100px, 18vw, 240px);
+  height: clamp(100px, 18vw, 240px);
+}
+
+/* Small filled dot */
+.geo-dot {
+  width: clamp(5px, 0.8vw, 8px);
+  height: clamp(5px, 0.8vw, 8px);
+  border-radius: 50%;
+  background: var(--accent-red);
+}
+
+/* ============================================================
+   SLIDE STRUCTURE
+   ============================================================ */
+.s-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.s-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: var(--content-gap);
+}
+
+.s-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+/* ============================================================
+   NAVIGATION LABELS
+   ============================================================ */
+.chap-label {
+  font-size: var(--label-size);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.chap-num {
+  font-size: var(--label-size);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+.label {
+  font-size: var(--label-size);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.overline {
+  font-size: var(--label-size);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-red);
+}
+
+.display-title {
+  font-family: 'Fraunces', serif;
+  font-size: var(--title-size);
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.display-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent-red);
+}
+
+.slide-heading {
+  font-family: 'Fraunces', serif;
+  font-size: var(--h2-size);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.slide-heading em {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.body-text {
+  font-size: var(--body-size);
+  color: var(--text-secondary);
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+.body-text strong { font-weight: 600; color: var(--text-primary); }
+
+.rule-bold {
+  width: clamp(28px, 4vw, 50px);
+  height: 3px;
+  background: var(--accent-red);
+  margin-bottom: clamp(0.6rem, 1.5vw, 1.2rem);
+}
+
+.signature {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(0.8rem, 1.5vw, 1.1rem);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+/* ============================================================
+   ANIMATION SYSTEM
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.6s var(--ease-out-expo),
+    transform 0.6s var(--ease-out-expo);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+
+/* ============================================================
+   PROGRESS BAR + COUNTER
+   ============================================================ */
+.progress-bar {
+  position: fixed;
+  bottom: 0; left: 0;
+  height: 2px;
+  background: var(--text-primary);
+  width: 0%;
+  z-index: 1000;
+  transition: width 0.2s ease;
+}
+
+.slide-counter {
+  position: fixed;
+  bottom: clamp(0.8rem, 2vw, 1.5rem);
+  right: clamp(0.8rem, 2vw, 1.5rem);
+  font-family: 'Work Sans', sans-serif;
+  font-size: clamp(0.55rem, 0.9vw, 0.7rem);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  z-index: 100;
+}
+
+.slide-counter .current { color: var(--text-primary); font-weight: 600; }
+
+/* ============================================================
+   SLIDE 1 — PORTADA
+   ============================================================ */
+.cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: 'Work Sans', sans-serif;
+  font-size: var(--small-size);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  padding: 0.65em 1.6em;
+  border: 2px solid var(--text-primary);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.cta-link:hover {
+  background: var(--text-primary);
+  color: var(--bg-cream);
+}
+
+.portada-meta {
+  font-size: var(--small-size);
+  color: var(--text-faint);
+  font-weight: 300;
+  text-align: right;
+  line-height: 1.8;
+}
+
+/* ============================================================
+   SLIDE 2 — EL PROBLEMA
+   ============================================================ */
+.problema-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(0.5rem, 1.5vw, 1.2rem);
+}
+
+.question-card {
+  padding: clamp(0.8rem, 1.6vw, 1.4rem);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  transition: border-color 0.2s ease;
+}
+
+.question-card:hover { border-color: rgba(26,26,26,0.35); }
+
+.question-num {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.4rem, 3vw, 2.8rem);
+  font-weight: 900;
+  color: rgba(0,0,0,0.07);
+  line-height: 1;
+}
+
+.question-text {
+  font-size: clamp(0.72rem, 1.3vw, 0.95rem);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.question-hint {
+  font-size: clamp(0.6rem, 1vw, 0.78rem);
+  color: var(--text-faint);
+  font-weight: 300;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* ============================================================
+   SLIDE 3 — LA PROMESA
+   ============================================================ */
+.promise-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.promise-item {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(0.7rem, 1.5vw, 1.2rem);
+  padding: clamp(0.5rem, 1vw, 0.85rem) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.promise-item:first-child { border-top: 1px solid var(--border-color); }
+
+.promise-check {
+  flex-shrink: 0;
+  font-size: var(--label-size);
+  font-weight: 700;
+  color: var(--accent-red);
+  letter-spacing: 0.1em;
+  margin-top: 0.15em;
+  min-width: 1.5em;
+}
+
+.promise-text {
+  font-size: clamp(0.72rem, 1.3vw, 0.95rem);
+  color: var(--text-primary);
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.promise-text strong { font-weight: 600; }
+
+/* ============================================================
+   SLIDE 4 — EL PIPELINE
+   ============================================================ */
+.pipeline-visual {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.4rem, 1vh, 0.8rem);
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(0.3rem, 0.8vw, 0.7rem);
+}
+
+.pipe-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  padding: clamp(0.5rem, 1vw, 0.9rem) clamp(0.6rem, 1.2vw, 1.1rem);
+  border: 1px solid var(--border-color);
+  min-width: 0;
+  flex: 1;
+}
+
+.pipe-node.highlight {
+  border-color: rgba(26,26,26,0.4);
+  background: rgba(26,26,26,0.025);
+}
+
+.node-label {
+  font-size: clamp(0.62rem, 1vw, 0.82rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.node-sub {
+  font-size: clamp(0.55rem, 0.85vw, 0.7rem);
+  color: var(--text-faint);
+  font-weight: 300;
+  line-height: 1.3;
+}
+
+.pipe-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+  font-size: clamp(0.7rem, 1.2vw, 1rem);
+  flex-shrink: 0;
+}
+
+.pipeline-lesson {
+  display: flex;
+  gap: clamp(0.3rem, 0.8vw, 0.6rem);
+  flex-wrap: wrap;
+}
+
+.lesson-badge {
+  font-size: clamp(0.5rem, 0.8vw, 0.65rem);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3em 0.7em;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   SLIDE 5 — EL STACK
+   ============================================================ */
+.stack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(0.5rem, 1.2vw, 1rem);
+}
+
+.stack-card {
+  padding: clamp(0.7rem, 1.5vw, 1.2rem);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stack-card:hover {
+  border-color: rgba(26,26,26,0.4);
+  box-shadow: 2px 2px 0 var(--text-primary);
+}
+
+.stack-name {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(0.85rem, 1.6vw, 1.3rem);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stack-role {
+  font-size: clamp(0.56rem, 0.9vw, 0.7rem);
+  color: var(--text-faint);
+  font-weight: 300;
+  line-height: 1.3;
+}
+
+.stack-when {
+  font-size: clamp(0.5rem, 0.78vw, 0.62rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-red);
+  margin-top: auto;
+  padding-top: 0.3em;
+}
+
+/* ============================================================
+   SLIDE 6 — LA ESTRUCTURA
+   ============================================================ */
+.blocks-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.block-row {
+  display: grid;
+  grid-template-columns: clamp(44px, 7vw, 70px) 1fr;
+  gap: clamp(0.6rem, 1.5vw, 1.2rem);
+  align-items: start;
+  padding: clamp(0.38rem, 0.85vw, 0.65rem) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.block-row:first-child { border-top: 1px solid var(--border-color); }
+
+.block-num {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(0.85rem, 1.8vw, 1.5rem);
+  font-weight: 900;
+  color: rgba(0,0,0,0.1);
+  line-height: 1;
+  padding-top: 0.1em;
+}
+
+.block-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.block-title {
+  font-size: clamp(0.72rem, 1.25vw, 0.95rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.block-classes {
+  font-size: clamp(0.58rem, 0.88vw, 0.7rem);
+  color: var(--text-faint);
+  font-weight: 300;
+}
+
+/* ============================================================
+   SLIDE 7 — FORMATO DE CLASE
+   ============================================================ */
+.format-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(0.8rem, 2.5vw, 2rem);
+}
+
+.format-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap);
+  padding-top: clamp(0.6rem, 1.2vw, 1rem);
+  border-top: 1px solid var(--border-color);
+}
+
+.format-col.active {
+  border-top-color: var(--text-primary);
+  border-top-width: 2px;
+}
+
+.format-col-title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(0.78rem, 1.4vw, 1.1rem);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.format-col-time {
+  font-size: clamp(0.58rem, 0.95vw, 0.75rem);
+  color: var(--accent-red);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.format-items {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.25rem, 0.6vh, 0.45rem);
+}
+
+.format-items li {
+  font-size: clamp(0.62rem, 1.05vw, 0.8rem);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  padding-left: 1.2em;
+  position: relative;
+}
+
+.format-items li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--text-faint);
+}
+
+.pull-quote {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(0.75rem, 1.35vw, 1rem);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-secondary);
+  padding-left: clamp(0.8rem, 1.5vw, 1.2rem);
+  border-left: 2px solid var(--text-primary);
+  line-height: 1.55;
+}
+
+/* ============================================================
+   SLIDE 8 — PARA QUIÉN
+   ============================================================ */
+.audience-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.audience-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: clamp(0.8rem, 1.8vw, 1.4rem);
+  align-items: start;
+  padding: clamp(0.5rem, 1vw, 0.85rem) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.audience-item:first-child { border-top: 1px solid var(--border-color); }
+
+.audience-icon {
+  font-size: clamp(1rem, 1.8vw, 1.4rem);
+  line-height: 1;
+  margin-top: 0.1em;
+}
+
+.audience-text { display: flex; flex-direction: column; gap: 0.2em; }
+
+.audience-title {
+  font-size: clamp(0.72rem, 1.3vw, 0.92rem);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audience-desc {
+  font-size: clamp(0.6rem, 1vw, 0.76rem);
+  color: var(--text-faint);
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+.not-for {
+  padding: clamp(0.5rem, 1vw, 0.8rem) clamp(0.8rem, 1.5vw, 1.2rem);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-red);
+}
+
+.not-for-label {
+  font-size: clamp(0.56rem, 0.9vw, 0.7rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-red);
+  margin-bottom: 0.3em;
+}
+
+.not-for-text {
+  font-size: clamp(0.62rem, 1vw, 0.78rem);
+  color: var(--text-secondary);
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   SLIDE 9 — ENTREGABLES
+   ============================================================ */
+.deliverable-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  align-items: start;
+}
+
+.deliverable-left, .deliverable-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+
+.deliverable-files {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.3rem, 0.6vh, 0.55rem);
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: clamp(0.45rem, 0.9vw, 0.8rem);
+  border: 1px solid var(--border-color);
+}
+
+.file-icon { font-size: clamp(0.9rem, 1.5vw, 1.2rem); flex-shrink: 0; }
+.file-info { display: flex; flex-direction: column; gap: 0.1em; }
+
+.file-name {
+  font-size: clamp(0.65rem, 1.1vw, 0.85rem);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.file-desc {
+  font-size: clamp(0.55rem, 0.88vw, 0.7rem);
+  color: var(--text-faint);
+  font-weight: 300;
+}
+
+.submit-method {
+  padding: clamp(0.6rem, 1.2vw, 1rem);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.submit-method.preferred { border-color: var(--text-primary); border-width: 2px; }
+
+.submit-label {
+  font-size: clamp(0.55rem, 0.88vw, 0.7rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.submit-label.green { color: var(--accent-red); }
+
+.submit-text {
+  font-size: clamp(0.65rem, 1.1vw, 0.85rem);
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+.ai-note {
+  padding: clamp(0.5rem, 1vw, 0.8rem) clamp(0.8rem, 1.5vw, 1.2rem);
+  border-left: 2px solid var(--text-primary);
+  font-size: clamp(0.6rem, 1vw, 0.78rem);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* ============================================================
+   SLIDE 10 — CTA
+   ============================================================ */
+.cta-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--content-gap);
+  flex: 1;
+  z-index: 1;
+}
+
+.cta-prereqs {
+  display: flex;
+  gap: clamp(0.4rem, 1vw, 0.8rem);
+  flex-wrap: wrap;
+}
+
+.prereq-chip {
+  font-size: var(--small-size);
+  font-weight: 400;
+  color: var(--text-secondary);
+  padding: 0.3em 0.8em;
+  border: 1px solid var(--border-color);
+  letter-spacing: 0.04em;
+}
+
+.cta-actions {
+  display: flex;
+  gap: clamp(0.6rem, 1.5vw, 1.2rem);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: 'Work Sans', sans-serif;
+  font-size: var(--small-size);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bg-cream);
+  background: var(--text-primary);
+  padding: 0.8em 2em;
+  border: 2px solid var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.btn-secondary {
+  font-family: 'Work Sans', sans-serif;
+  font-size: var(--small-size);
+  font-weight: 400;
+  color: var(--text-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+/* ============================================================
+   INLINE EDITING
+   ============================================================ */
+.edit-hotzone {
+  position: fixed;
+  top: 0; left: 0;
+  width: 80px; height: 80px;
+  z-index: 10000;
+  cursor: pointer;
+}
+
+.edit-toggle {
+  position: fixed;
+  top: 14px; left: 14px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--bg-cream);
+  border: 1.5px solid rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 10001;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.edit-toggle.show, .edit-toggle.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.edit-toggle.active {
+  background: var(--text-primary);
+  color: var(--bg-cream);
+  transform: scale(1.1);
+}
+
+body.edit-mode [contenteditable="true"] {
+  outline: 1.5px dashed rgba(0,0,0,0.25);
+  border-radius: 1px;
+  cursor: text;
+  padding: 1px 2px;
+  min-width: 1em;
+}
+
+body.edit-mode [contenteditable="true"]:focus {
+  outline: 1.5px solid var(--accent-red);
+  background: rgba(197, 64, 30, 0.04);
+}
+
+.edit-status {
+  position: fixed;
+  top: 14px; left: 60px;
+  font-family: 'Work Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.45);
+  background: var(--bg-cream);
+  padding: 0.3em 0.8em;
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.12);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 10001;
+  white-space: nowrap;
+}
+
+body.edit-mode .edit-status { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<!-- === PROGRESS BAR === -->
+<div class="progress-bar" id="progressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+
+<!-- === SLIDE COUNTER === -->
+<div class="slide-counter" id="slideCounter">
+  <span class="current" id="currentNum">1</span> / <span id="totalNum">10</span>
+</div>
+
+<!-- === INLINE EDIT CONTROLS === -->
+<div class="edit-hotzone" id="editHotzone" aria-label="Zona de edición"></div>
+<button class="edit-toggle" id="editToggle" title="Modo edición (E)" aria-pressed="false">✏️</button>
+<div class="edit-status" id="editStatus">Editando — Ctrl+S para guardar</div>
+
+
+<!-- ============================================================
+     SLIDE 1 — PORTADA
+     ============================================================ -->
+<section class="slide" id="slide-1" aria-label="Portada">
+  <div class="geo geo-circle geo-tr" aria-hidden="true"></div>
+  <div class="geo geo-dot" style="bottom: calc(var(--slide-padding) * 1.5); left: var(--slide-padding);" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Real-Time Data Processing</span>
+    <span class="chap-num">12 Clases · 3h c/u</span>
+  </div>
+
+  <div class="s-main">
+    <div class="reveal" style="transition-delay: 0.18s">
+      <div class="rule-bold"></div>
+      <h1 class="display-title">
+        De Postgres<br>
+        a un pipeline<br>
+        <em>en tiempo real.</em>
+      </h1>
+    </div>
+    <p class="body-text reveal" style="max-width: 52ch; transition-delay: 0.32s">
+      Construye el sistema completo — OLTP, CDC, Kafka, Spark, Flink y ClickHouse. Las herramientas que usan los equipos de datos serios.
+    </p>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.45s">
+    <button class="cta-link" onclick="document.getElementById('slide-10').scrollIntoView({behavior:'smooth'})">
+      Ver cómo inscribirse →
+    </button>
+    <div class="portada-meta">
+      Python 3.13+ · Docker<br>
+      IA asistida y recomendada
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 2 — EL PROBLEMA
+     ============================================================ -->
+<section class="slide" id="slide-2" aria-label="El problema">
+  <div class="geo geo-circle geo-bl" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">El punto de partida</span>
+    <span class="chap-num">02 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">
+      Cuatro preguntas que<br>la mayoría no puede responder.
+    </h2>
+    <div class="problema-grid reveal" style="transition-delay: 0.3s">
+      <div class="question-card">
+        <div class="question-num">01</div>
+        <p class="question-text">¿Cuántos TPS aguanta tu Postgres antes de saturarse?</p>
+        <p class="question-hint">Y qué recurso se satura primero: CPU, I/O, locks, o conexiones.</p>
+      </div>
+      <div class="question-card">
+        <div class="question-num">02</div>
+        <p class="question-text">¿Qué pagas cuando distribuyes la base de datos?</p>
+        <p class="question-hint">Más nodos no es más velocidad. ¿Cuánta latencia añade cada garantía?</p>
+      </div>
+      <div class="question-card">
+        <div class="question-num">03</div>
+        <p class="question-text">¿Por qué el mismo hardware es 50x más rápido en OLAP?</p>
+        <p class="question-hint">No es el software — es el layout físico de los datos en disco.</p>
+      </div>
+      <div class="question-card">
+        <div class="question-num">04</div>
+        <p class="question-text">¿Es tu sistema "tiempo real" o solo micro-batch rápido?</p>
+        <p class="question-hint">La diferencia importa cuando el SLA es 500ms, no 30 segundos.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.45s">
+    <span class="label">Si dudaste en alguna — este curso es para ti.</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 3 — LA PROMESA
+     ============================================================ -->
+<section class="slide" id="slide-3" aria-label="La promesa">
+  <div class="geo geo-circle geo-tr" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Al terminar este curso</span>
+    <span class="chap-num">03 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">
+      Sabrás hacer esto.<br><em>Con evidencia.</em>
+    </h2>
+    <ul class="promise-list">
+      <li class="promise-item reveal" style="transition-delay: 0.28s">
+        <span class="promise-check">✓</span>
+        <p class="promise-text">
+          <strong>Benchmarkear Postgres hasta el límite</strong> — identificar qué recurso se satura primero usando flame graphs y <code>pg_stat_statements</code>.
+        </p>
+      </li>
+      <li class="promise-item reveal" style="transition-delay: 0.36s">
+        <span class="promise-check">✓</span>
+        <p class="promise-text">
+          <strong>Construir un CDC consumer desde cero</strong> con <code>psycopg3</code> que mantiene una vista materializada en DuckDB sincronizada con Postgres.
+        </p>
+      </li>
+      <li class="promise-item reveal" style="transition-delay: 0.44s">
+        <span class="promise-check">✓</span>
+        <p class="promise-text">
+          <strong>Medir la diferencia real entre Spark y Flink</strong> — producir CDFs de latencia p99 en workloads idénticos y recomendar con datos.
+        </p>
+      </li>
+      <li class="promise-item reveal" style="transition-delay: 0.52s">
+        <span class="promise-check">✓</span>
+        <p class="promise-text">
+          <strong>Correr un pipeline end-to-end</strong> — Postgres → CDC → Kafka → Spark → ClickHouse → FastAPI, con Grafana monitoreando cada etapa.
+        </p>
+      </li>
+    </ul>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.6s">
+    <span class="signature">No conclusiones abstractas — código que corre.</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 4 — EL PIPELINE
+     ============================================================ -->
+<section class="slide" id="slide-4" aria-label="El pipeline">
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Lo que vas a construir</span>
+    <span class="chap-num">04 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">
+      Cada clase agrega una pieza.<br><em>Al final, todo corre junto.</em>
+    </h2>
+    <div class="pipeline-visual reveal" style="transition-delay: 0.3s">
+      <div class="pipeline-row">
+        <div class="pipe-node highlight">
+          <span class="node-label">PostgreSQL</span>
+          <span class="node-sub">OLTP · Fuente de verdad</span>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <span class="node-label">CDC</span>
+          <span class="node-sub">Captura de cambios en WAL</span>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">
+          <span class="node-label">Apache Kafka</span>
+          <span class="node-sub">Commit log distribuido</span>
+        </div>
+      </div>
+      <div style="text-align:center; color: var(--text-faint); font-size: clamp(0.8rem, 1.5vw, 1.1rem); padding: 0.2em 0;">↓</div>
+      <div class="pipeline-row">
+        <div class="pipe-node highlight">
+          <span class="node-label">Spark / Flink</span>
+          <span class="node-sub">Stream processing · Windowing · Estado</span>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">
+          <span class="node-label">ClickHouse</span>
+          <span class="node-sub">OLAP tiempo real · sub-segundo</span>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <span class="node-label">FastAPI + Grafana</span>
+          <span class="node-sub">Servir y monitorear</span>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-lesson reveal" style="transition-delay: 0.42s">
+      <span class="lesson-badge">Clases 1–2: OLTP</span>
+      <span class="lesson-badge">Clases 3–4: OLAP + ETL</span>
+      <span class="lesson-badge">Clases 5–6: CDC + Kafka</span>
+      <span class="lesson-badge">Clases 7–12: Streaming + OLAP RT</span>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.52s">
+    <span class="label">Doce clases · un pipeline</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 5 — EL STACK
+     ============================================================ -->
+<section class="slide" id="slide-5" aria-label="El stack">
+  <div class="geo geo-circle geo-bl" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Herramientas del curso</span>
+    <span class="chap-num">05 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">
+      Stack de industria.<br><em>No ejemplos de juguete.</em>
+    </h2>
+    <div class="stack-grid reveal" style="transition-delay: 0.3s">
+      <div class="stack-card">
+        <span class="stack-name">Kafka</span>
+        <span class="stack-role">Event streaming · Commit log distribuido · KRaft (sin ZooKeeper)</span>
+        <span class="stack-when">Clase 6</span>
+      </div>
+      <div class="stack-card">
+        <span class="stack-name">PySpark</span>
+        <span class="stack-role">Structured Streaming · Micro-batch · Operaciones stateful</span>
+        <span class="stack-when">Clases 7–8</span>
+      </div>
+      <div class="stack-card">
+        <span class="stack-name">PyFlink</span>
+        <span class="stack-role">True streaming · DataStream API · Flink SQL</span>
+        <span class="stack-when">Clase 9</span>
+      </div>
+      <div class="stack-card">
+        <span class="stack-name">ClickHouse</span>
+        <span class="stack-role">OLAP tiempo real · MergeTree · Ingestion desde Kafka</span>
+        <span class="stack-when">Clase 10</span>
+      </div>
+      <div class="stack-card">
+        <span class="stack-name">DuckDB</span>
+        <span class="stack-role">OLAP batch · Vectorized execution · Análisis local</span>
+        <span class="stack-when">Clase 3</span>
+      </div>
+      <div class="stack-card">
+        <span class="stack-name">Grafana</span>
+        <span class="stack-role">Monitoreo · Consumer lag · Latencia de procesamiento</span>
+        <span class="stack-when">Clase 11</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.42s">
+    <span class="label">Herramientas reales · sin frameworks de juguete</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 6 — LA ESTRUCTURA
+     ============================================================ -->
+<section class="slide" id="slide-6" aria-label="La estructura">
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">12 clases · 6 bloques</span>
+    <span class="chap-num">06 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">Una progresión deliberada.</h2>
+    <div class="blocks-list">
+      <div class="block-row reveal" style="transition-delay: 0.26s">
+        <span class="block-num">B1</span>
+        <div class="block-info">
+          <span class="block-title">Los límites de una base de datos</span>
+          <span class="block-classes">Clases 1–2 · Postgres hasta el fallo · CockroachDB · CAP theorem</span>
+        </div>
+      </div>
+      <div class="block-row reveal" style="transition-delay: 0.32s">
+        <span class="block-num">B2</span>
+        <div class="block-info">
+          <span class="block-title">Datos analíticos y el problema de moverlos</span>
+          <span class="block-classes">Clases 3–4 · DuckDB · Vectorized execution · Batch ETL · Idempotencia</span>
+        </div>
+      </div>
+      <div class="block-row reveal" style="transition-delay: 0.38s">
+        <span class="block-num">B3</span>
+        <div class="block-info">
+          <span class="block-title">De batch a streaming</span>
+          <span class="block-classes">Clases 5–6 · CDC · Replicación lógica en Postgres · Kafka fundamentos</span>
+        </div>
+      </div>
+      <div class="block-row reveal" style="transition-delay: 0.44s">
+        <span class="block-num">B4</span>
+        <div class="block-info">
+          <span class="block-title">Stream processing</span>
+          <span class="block-classes">Clases 7–8 · PySpark Structured Streaming · Windowing · Exactly-once</span>
+        </div>
+      </div>
+      <div class="block-row reveal" style="transition-delay: 0.5s">
+        <span class="block-num">B5</span>
+        <div class="block-info">
+          <span class="block-title">Streaming real vs. micro-batch</span>
+          <span class="block-classes">Clases 9–10 · Spark vs. Flink · Latencia medida · ClickHouse real-time OLAP</span>
+        </div>
+      </div>
+      <div class="block-row reveal" style="transition-delay: 0.56s">
+        <span class="block-num">B6</span>
+        <div class="block-info">
+          <span class="block-title">Todo junto y todo roto</span>
+          <span class="block-classes">Clases 11–12 · Pipeline end-to-end · Schema registry · Chaos engineering CTF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.62s">
+    <span class="label">Cada bloque termina con lo que empieza el siguiente.</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 7 — FORMATO DE CLASE
+     ============================================================ -->
+<section class="slide" id="slide-7" aria-label="Formato de clase">
+  <div class="geo geo-circle geo-br" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Cada clase · 3 horas</span>
+    <span class="chap-num">07 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">
+      Teoría, práctica,<br><em>y luego romperlo.</em>
+    </h2>
+    <div class="format-cols reveal" style="transition-delay: 0.3s">
+      <div class="format-col active">
+        <span class="format-col-title">Teoría</span>
+        <span class="format-col-time">~60 min</span>
+        <ul class="format-items">
+          <li>Primeros principios, no slides de marketing</li>
+          <li>Modelos mentales precisos</li>
+          <li>La pregunta que abre la práctica</li>
+        </ul>
+      </div>
+      <div class="format-col">
+        <span class="format-col-title">Práctico</span>
+        <span class="format-col-time">~90 min</span>
+        <ul class="format-items">
+          <li>Implementar desde cero</li>
+          <li>Medir y comparar con datos reales</li>
+          <li>Inyectar fallos deliberados</li>
+        </ul>
+      </div>
+      <div class="format-col">
+        <span class="format-col-title">Experimentos</span>
+        <span class="format-col-time">~30 min</span>
+        <ul class="format-items">
+          <li>Empujar más lejos los límites</li>
+          <li>Discutir tradeoffs con evidencia</li>
+          <li>Conectar con la siguiente clase</li>
+        </ul>
+      </div>
+    </div>
+    <blockquote class="pull-quote reveal" style="transition-delay: 0.42s">
+      "Entender la instrumentación importa más que el número que produce."
+    </blockquote>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.52s">
+    <span class="label">El objetivo es el modelo mental, no el código terminado.</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 8 — PARA QUIÉN
+     ============================================================ -->
+<section class="slide" id="slide-8" aria-label="Para quién">
+  <div class="geo geo-circle geo-tr" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Perfil recomendado</span>
+    <span class="chap-num">08 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">Este curso es para ti si…</h2>
+    <ul class="audience-list">
+      <li class="audience-item reveal" style="transition-delay: 0.28s">
+        <span class="audience-icon">🐍</span>
+        <div class="audience-text">
+          <span class="audience-title">Sabes Python y SQL, y ya te sientes cómodo con async básico</span>
+          <span class="audience-desc">No necesitas ser experto, pero debes poder leer código <code>asyncio</code> sin que te cueste.</span>
+        </div>
+      </li>
+      <li class="audience-item reveal" style="transition-delay: 0.36s">
+        <span class="audience-icon">📦</span>
+        <div class="audience-text">
+          <span class="audience-title">Has usado Docker alguna vez — aunque sea para correr Postgres en local</span>
+          <span class="audience-desc">No necesitas saber escribir Dockerfiles, pero sí sentirte cómodo con <code>docker compose up</code>.</span>
+        </div>
+      </li>
+      <li class="audience-item reveal" style="transition-delay: 0.44s">
+        <span class="audience-icon">📈</span>
+        <div class="audience-text">
+          <span class="audience-title">Quieres pasar de "sé Python" a "diseño pipelines de producción"</span>
+          <span class="audience-desc">El salto de junior a senior data engineer no es escribir más código — es entender qué se rompe y por qué.</span>
+        </div>
+      </li>
+    </ul>
+    <div class="not-for reveal" style="transition-delay: 0.52s">
+      <p class="not-for-label">No es para ti si…</p>
+      <p class="not-for-text">Buscas un curso de Python básico o de SQL desde cero. Este curso asume que ya escribes código — viene a enseñarte a pensar en sistemas.</p>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.6s">
+    <span class="label"></span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 9 — ENTREGABLES
+     ============================================================ -->
+<section class="slide" id="slide-9" aria-label="Entregables">
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Formato de entregable</span>
+    <span class="chap-num">09 · 10</span>
+  </div>
+
+  <div class="s-main">
+    <h2 class="slide-heading reveal" style="transition-delay: 0.18s">
+      Un repositorio real<br><em>por cada clase.</em>
+    </h2>
+    <div class="deliverable-layout">
+      <div class="deliverable-left reveal" style="transition-delay: 0.3s">
+        <p class="body-text" style="font-size: var(--small-size);">Cada entregable es un repo de GitHub con tres archivos obligatorios:</p>
+        <div class="deliverable-files">
+          <div class="file-item">
+            <span class="file-icon">📄</span>
+            <div class="file-info">
+              <span class="file-name">código funcional</span>
+              <span class="file-desc">El ejercicio de la clase, corriendo</span>
+            </div>
+          </div>
+          <div class="file-item">
+            <span class="file-icon">📋</span>
+            <div class="file-info">
+              <span class="file-name">README.md</span>
+              <span class="file-desc">Enfoque, hallazgos, decisiones técnicas</span>
+            </div>
+          </div>
+          <div class="file-item">
+            <span class="file-icon">🤖</span>
+            <div class="file-info">
+              <span class="file-name">AGENTS.md / CLAUDE.md</span>
+              <span class="file-desc">Contexto del proyecto para asistentes de IA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="deliverable-right reveal" style="transition-delay: 0.4s">
+        <div class="submit-method preferred">
+          <span class="submit-label green">✓ Preferido</span>
+          <span class="submit-text">Pull Request al repositorio del curso</span>
+        </div>
+        <div class="submit-method">
+          <span class="submit-label">Alternativa</span>
+          <span class="submit-text">ZIP al drive de la clase</span>
+        </div>
+        <div class="ai-note">
+          El uso de asistentes de IA es <strong>activamente fomentado</strong>. Recomendamos opencode (sin tarjeta de crédito) — pero cualquier agente funciona.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.5s">
+    <span class="label">La IA no es trampa — es parte del stack.</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     SLIDE 10 — CTA
+     ============================================================ -->
+<section class="slide" id="slide-10" aria-label="Inscripción">
+  <div class="geo geo-circle geo-tr" aria-hidden="true"></div>
+  <div class="geo geo-circle geo-bl" style="opacity: 0.5" aria-hidden="true"></div>
+
+  <div class="s-top reveal" style="transition-delay: 0.05s">
+    <span class="chap-label">Real-Time Data Processing</span>
+    <span class="chap-num">Python 3.13+ · Docker</span>
+  </div>
+
+  <div class="cta-main">
+    <div class="reveal" style="transition-delay: 0.2s">
+      <div class="rule-bold"></div>
+      <h2 class="display-title">
+        Empieza a construir<br>
+        <em>el pipeline que no para.</em>
+      </h2>
+    </div>
+    <div class="cta-prereqs reveal" style="transition-delay: 0.35s">
+      <span class="prereq-chip">Python + SQL básico</span>
+      <span class="prereq-chip">Docker (básico)</span>
+      <span class="prereq-chip">asyncio (leer código)</span>
+    </div>
+    <div class="cta-actions reveal" style="transition-delay: 0.48s">
+      <button class="btn-primary">Inscribirme →</button>
+      <button class="btn-secondary">Ver el temario completo</button>
+    </div>
+  </div>
+
+  <div class="s-foot reveal" style="transition-delay: 0.58s">
+    <div style="line-height: 1.8; font-size: var(--small-size); color: var(--text-faint); font-weight: 300;">
+      12 clases · 3 horas cada una<br>
+      Herramientas gratuitas · IA recomendada
+    </div>
+    <span class="signature">Real-Time Data Processing</span>
+  </div>
+</section>
+
+
+<script>
+/* ============================================================
+   SLIDE PRESENTATION CONTROLLER
+   ============================================================ */
+class SlidePresentation {
+  constructor() {
+    this.slides = document.querySelectorAll('.slide');
+    this.totalSlides = this.slides.length;
+    this.currentIndex = 0;
+
+    document.getElementById('totalNum').textContent = this.totalSlides;
+
+    this.setupIntersectionObserver();
+    this.setupKeyboardNav();
+    this.setupTouchNav();
+    this.setupScrollUpdate();
+
+    this.slides[0].classList.add('visible');
+  }
+
+  setupIntersectionObserver() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          const idx = Array.from(this.slides).indexOf(entry.target);
+          if (idx !== -1) this.currentIndex = idx;
+        }
+      });
+    }, { threshold: 0.5 });
+
+    this.slides.forEach(slide => observer.observe(slide));
+  }
+
+  setupScrollUpdate() {
+    const bar = document.getElementById('progressBar');
+    const currentNum = document.getElementById('currentNum');
+
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      bar.style.width = progress + '%';
+
+      const slideH = window.innerHeight;
+      const idx = Math.round(scrollTop / slideH);
+      currentNum.textContent = Math.min(idx + 1, this.totalSlides);
+    }, { passive: true });
+  }
+
+  setupKeyboardNav() {
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') return;
+
+      switch (e.key) {
+        case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+          e.preventDefault(); this.nextSlide(); break;
+        case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+          e.preventDefault(); this.prevSlide(); break;
+        case 'Home': e.preventDefault(); this.goToSlide(0); break;
+        case 'End':  e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
+      }
+    });
+  }
+
+  setupTouchNav() {
+    let startY = 0, startX = 0;
+
+    document.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      const dy = startY - e.changedTouches[0].clientY;
+      const dx = startX - e.changedTouches[0].clientX;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+        dy > 0 ? this.nextSlide() : this.prevSlide();
+      }
+    }, { passive: true });
+  }
+
+  nextSlide() {
+    if (this.currentIndex < this.totalSlides - 1) this.goToSlide(this.currentIndex + 1);
+  }
+
+  prevSlide() {
+    if (this.currentIndex > 0) this.goToSlide(this.currentIndex - 1);
+  }
+
+  goToSlide(idx) {
+    this.currentIndex = Math.max(0, Math.min(idx, this.totalSlides - 1));
+    this.slides[this.currentIndex].scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+/* ============================================================
+   INLINE EDITOR
+   JS-based hover with 400ms grace period
+   ============================================================ */
+class InlineEditor {
+  constructor() {
+    this.isActive = false;
+    this.storageKey = 'slides_content_rtdp_ve';
+
+    this.toggle   = document.getElementById('editToggle');
+    this.hotzone  = document.getElementById('editHotzone');
+    this.status   = document.getElementById('editStatus');
+
+    this.setupHotzone();
+    this.setupKeyboardShortcut();
+    this.setupSaveShortcut();
+    this.loadSavedContent();
+  }
+
+  setupHotzone() {
+    let hideTimeout = null;
+
+    const show = () => {
+      clearTimeout(hideTimeout);
+      this.toggle.classList.add('show');
+    };
+
+    const hide = () => {
+      hideTimeout = setTimeout(() => {
+        if (!this.isActive) this.toggle.classList.remove('show');
+      }, 400);
+    };
+
+    this.hotzone.addEventListener('mouseenter', show);
+    this.hotzone.addEventListener('mouseleave', hide);
+    this.hotzone.addEventListener('click', () => this.toggleEditMode());
+    this.toggle.addEventListener('mouseenter', show);
+    this.toggle.addEventListener('mouseleave', hide);
+    this.toggle.addEventListener('click', () => this.toggleEditMode());
+  }
+
+  setupKeyboardShortcut() {
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) {
+        this.toggleEditMode();
+      }
+    });
+  }
+
+  setupSaveShortcut() {
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        this.saveContent();
+        this.flashStatus('Guardado ✓');
+      }
+    });
+  }
+
+  toggleEditMode() {
+    this.isActive = !this.isActive;
+    document.body.classList.toggle('edit-mode', this.isActive);
+    this.toggle.classList.toggle('active', this.isActive);
+    this.toggle.setAttribute('aria-pressed', this.isActive.toString());
+    this.toggle.textContent = this.isActive ? '✓' : '✏️';
+
+    if (this.isActive) {
+      this.makeEditable();
+      this.toggle.classList.add('show');
+    } else {
+      this.removeEditable();
+      this.saveContent();
+    }
+  }
+
+  makeEditable() {
+    const selectors = [
+      '.display-title', '.slide-heading', '.body-text', '.label', '.chap-label',
+      '.question-text', '.question-hint', '.promise-text',
+      '.node-label', '.node-sub', '.stack-name', '.stack-role',
+      '.block-title', '.block-classes', '.format-col-title', '.format-items li',
+      '.pull-quote', '.audience-title', '.audience-desc',
+      '.file-name', '.file-desc', '.submit-text', '.ai-note',
+      '.portada-meta', '.signature', '.not-for-text'
+    ];
+
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        el.setAttribute('contenteditable', 'true');
+      });
+    });
+  }
+
+  removeEditable() {
+    document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+      el.removeAttribute('contenteditable');
+    });
+  }
+
+  saveContent() {
+    const snapshot = {};
+    const selectors = ['.display-title', '.slide-heading', '.chap-label', '.body-text', '.pull-quote'];
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach((el, i) => {
+        snapshot[`${sel}__${i}`] = el.innerHTML;
+      });
+    });
+    try { localStorage.setItem(this.storageKey, JSON.stringify(snapshot)); } catch(e) {}
+  }
+
+  loadSavedContent() {
+    try {
+      const saved = localStorage.getItem(this.storageKey);
+      if (!saved) return;
+      const snapshot = JSON.parse(saved);
+      const selectors = ['.display-title', '.slide-heading', '.chap-label', '.body-text', '.pull-quote'];
+      selectors.forEach(sel => {
+        document.querySelectorAll(sel).forEach((el, i) => {
+          const key = `${sel}__${i}`;
+          if (snapshot[key]) el.innerHTML = snapshot[key];
+        });
+      });
+    } catch(e) {}
+  }
+
+  flashStatus(msg) {
+    if (!this.status) return;
+    const orig = this.status.textContent;
+    this.status.textContent = msg;
+    setTimeout(() => { this.status.textContent = orig; }, 2000);
+  }
+}
+
+/* === INIT === */
+document.addEventListener('DOMContentLoaded', () => {
+  new SlidePresentation();
+  new InlineEditor();
+});
+</script>
+</body>
+</html>
