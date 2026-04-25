@@ -2,9 +2,10 @@ FROM redpandadata/redpanda:v24.2.7 AS redpanda
 
 FROM python:3.13-slim
 
-# Redpanda binaries from the official image (same Debian bookworm glibc, compatible)
+# Redpanda: /usr/bin/redpanda is a wrapper that calls /opt/redpanda/libexec/redpanda
 COPY --from=redpanda /usr/bin/redpanda /usr/bin/redpanda
 COPY --from=redpanda /usr/bin/rpk /usr/bin/rpk
+COPY --from=redpanda /opt/redpanda /opt/redpanda
 
 # Runtime libs Redpanda needs that slim doesn't ship
 RUN apt-get update && apt-get install -y \
