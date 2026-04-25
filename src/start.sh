@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 log() { echo "[demo] $*"; }
 
@@ -24,7 +23,7 @@ log "Waiting for ClickHouse..."
 until curl -sf http://localhost:8123/ping 2>/dev/null | grep -q "Ok"; do sleep 2; done
 
 # Init schema — swap docker-compose service name for localhost
-sed 's/redpanda:9092/localhost:9092/g' /init.sql | clickhouse client --multiquery
+sed 's/redpanda:9092/localhost:9092/g' /init.sql | clickhouse client --multiquery || true
 log "ClickHouse ready"
 
 export KAFKA_BOOTSTRAP=localhost:9092
