@@ -1,0 +1,14 @@
+[project]
+name = "lesson1-postgres-bench"
+version = "0.1.0"
+description = "Lesson 1: PostgreSQL load generation and bottleneck analysis"
+requires-python = ">=3.11"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "psycopg[binary]>=3.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "py-spy>=0.4.0",
+]
