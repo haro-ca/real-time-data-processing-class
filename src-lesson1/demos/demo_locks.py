@@ -28,9 +28,8 @@ async def ensure_target_row(pool: asyncpg.Pool) -> None:
         row = await conn.fetchval("SELECT id FROM orders WHERE id = 1")
         if row is None:
             await conn.execute(
-                "INSERT INTO orders (customer_id, amount) "
-                "OVERRIDING SYSTEM VALUE VALUES (1, 1, 10.00, 'pending', now())"
-            )
+                "INSERT INTO orders (id, customer_id, amount) "
+                "OVERRIDING SYSTEM VALUE VALUES (1, 1, 10.00)")
             print("  ✓ Created target row (id=1)")
         else:
             print("  ✓ Target row (id=1) exists")

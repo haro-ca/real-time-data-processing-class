@@ -27,52 +27,48 @@ UPDATE_SQL = "UPDATE orders SET amount = amount + $1 WHERE id = $2"
 async def run(connections: int, total_rows: int, mode: str, no_sync: bool) -> None:
     pool = await asyncpg.create_pool(DSN, min_size=connections, max_size=connections)
 
-    if no_sync:
-        async with pool.acquire() as conn:
-            await conn.execute("SET synchronous_commit = off")
-        print("  ⚠ synchronous_commit = off (session-level on pool init connection)")
-
     label = f"Phase 2 — Async loader: {total_rows:,} rows, {connections} connections, mode={mode}"
     if no_sync:
         label += ", sync_commit=off"
     print(label)
     print("-" * 60)
 
-    done = 0
-    done_lock = asyncio.Lock()
+    counter = {"done": 0}
     t0 = time.monotonic()
+    rows_per_worker = total_rows // connections
+    remainder = total_rows % connections
 
     async def reporter():
-        nonlocal done
         while True:
             await asyncio.sleep(1.0)
             elapsed = time.monotonic() - t0
-            async with done_lock:
-                current = done
+            current = counter["done"]
             if current > 0:
                 tps = current / elapsed
                 print(f"  [{elapsed:6.1f}s]  {tps:,.0f} TPS  |  total: {current:,}")
             if current >= total_rows:
                 break
 
-    sem = asyncio.Semaphore(connections * 4)
-
-    async def worker(i: int):
-        nonlocal done
-        async with sem:
-            async with pool.acquire() as conn:
-                if no_sync:
-                    await conn.execute("SET synchronous_commit = off")
+    async def worker(worker_id: int, n_rows: int):
+        conn = await pool.acquire()
+        try:
+            if no_sync:
+                await conn.execute("SET synchronous_commit = off")
+            for _ in range(n_rows):
                 if mode == "insert":
                     await conn.execute(INSERT_SQL, random.randint(1, 10_000), round(random.uniform(1, 500), 2))
                 else:
                     row_id = random.randint(1, max(1, total_rows // 2))
                     await conn.execute(UPDATE_SQL, round(random.uniform(0.01, 1.0), 2), row_id)
-            async with done_lock:
-                done += 1
+                counter["done"] += 1
+        finally:
+            await pool.release(conn)
 
     reporter_task = asyncio.create_task(reporter())
-    tasks = [asyncio.create_task(worker(i)) for i in range(total_rows)]
+    tasks = []
+    for i in range(connections):
+        n = rows_per_worker + (1 if i < remainder else 0)
+        tasks.append(asyncio.create_task(worker(i, n)))
     await asyncio.gather(*tasks)
     await reporter_task
 
