@@ -437,7 +437,7 @@
 </svg>
 
 <!-- ═══════════════════════════════════════════════════
-     LESSON 2: DISTRIBUTE OLTP — 35 SLIDES
+     LESSON 2: DISTRIBUTE OLTP — 36 SLIDES
      ═══════════════════════════════════════════════════ -->
 
 <!-- ─── SLIDE 1 · TITLE ──────────────────────────── -->
@@ -450,7 +450,7 @@
         <h1 class="display-title reveal">What happens when<br>you <em>distribute</em><br>OLTP?</h1>
         <p class="subtitle reveal" style="margin-top:clamp(0.5rem,1.2vh,1rem);">CockroachDB. Raft consensus. 2PC. The price of coordination.</p>
     </div>
-    <span class="slide-num">01 / 35</span>
+    <span class="slide-num">01 / 36</span>
 </section>
 
 
@@ -476,7 +476,7 @@
             <span class="callout-text">Single Postgres, 100k rows. <span style="color:var(--terracotta);">sync=off trades durability &mdash; not an option for real OLTP.</span> So we turned sync back on and reached for COPY: bulk batching, not shortcuts. Hot row = contention ceiling. <strong>Can we do better with more nodes?</strong></span>
         </div>
     </div>
-    <span class="slide-num">02 / 35</span>
+    <span class="slide-num">02 / 36</span>
 </section>
 
 <!-- ─── SLIDE 3 · LIVE DEMO: RUN BOTH BENCHMARKS ──── -->
@@ -508,7 +508,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.5rem,1vh,0.8rem);">Same schema. Same <code style="color:rgba(255,255,255,0.5);">asyncpg</code> driver. 3 nodes, 6 CPUs, 12 GB RAM vs. 1 node, 2 CPUs, 4 GB.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">03 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">03 / 36</span>
 </section>
 
 <!-- ─── SLIDE 3 · REVEAL: HEAD-TO-HEAD ───────────── -->
@@ -531,7 +531,7 @@
             <span class="callout-text">Every scenario is slower. Parallel COPY is <strong>20&times; slower</strong> &mdash; every batch goes through Raft consensus. There is no <code>synchronous_commit=off</code> escape hatch.</span>
         </div>
     </div>
-    <span class="slide-num">04 / 35</span>
+    <span class="slide-num">04 / 36</span>
 </section>
 
 <!-- ─── SLIDE 4 · LATENCY PERCENTILES ────────────── -->
@@ -556,7 +556,7 @@
             <span class="callout-text"><strong>Remember:</strong> p<em>X</em> = <em>X</em>% of requests finished at or below this time. Sort 10 latencies: 1, 1, 2, 2, <strong style="color:var(--dusty-blue);">3</strong>, 3, 4, 5, 6, <strong style="color:var(--terracotta);">9</strong> &rarr; <span style="color:var(--dusty-blue);">p50&nbsp;=&nbsp;3&nbsp;ms</span>, <span style="color:var(--terracotta);">p99&nbsp;&asymp;&nbsp;9&nbsp;ms</span>.</span>
         </div>
     </div>
-    <span class="slide-num">05 / 35</span>
+    <span class="slide-num">05 / 36</span>
 </section>
 
 <!-- ─── SLIDE 5 · THE QUESTION ───────────────────── -->
@@ -567,7 +567,7 @@
         <div class="big-question reveal" style="text-align:center;">If distribution makes everything <em>slower</em>&hellip; why does anyone do it?</div>
         <p class="subtitle reveal" style="text-align:center;margin-top:clamp(0.8rem,1.5vh,1.2rem);max-width:600px;">A related question that coincidentally has the same answer is: <strong>why</strong> is it slower?</p>
     </div>
-    <span class="slide-num">06 / 35</span>
+    <span class="slide-num">06 / 36</span>
 </section>
 
 <!-- ─── SLIDE 5 · THE NETWORK CHANGES EVERYTHING ──── -->
@@ -591,7 +591,7 @@
             <span class="callout-text">In Lesson 1, the bottleneck was WAL fsync at ~10&ndash;50 &mu;s. Now add <strong>500 &mu;s minimum</strong> per coordination round. That&rsquo;s a 10&ndash;50&times; penalty from physics alone.</span>
         </div>
     </div>
-    <span class="slide-num">07 / 35</span>
+    <span class="slide-num">07 / 36</span>
 </section>
 
 
@@ -627,7 +627,7 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">08 / 35</span>
+    <span class="slide-num">08 / 36</span>
 </section>
 
 
@@ -652,7 +652,7 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">09 / 35</span>
+    <span class="slide-num">09 / 36</span>
 </section>
 
 <!-- ─── SLIDE 6 · WHY CP FOR OLTP ────────────────── -->
@@ -666,7 +666,7 @@
             <span class="callout-text" style="color:rgba(255,255,255,0.85);">Kleppmann&rsquo;s critique: CAP is about a very specific consistency (linearizability) and a very specific availability (every non-failing node responds). Real systems operate between these extremes.</span>
         </div>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">10 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">10 / 36</span>
 </section>
 
 
@@ -686,7 +686,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">2 of 3 nodes alive = quorum. Writes continue. <strong style="color:var(--sage);">This is what you&rsquo;re buying.</strong></p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">11 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">11 / 36</span>
 </section>
 
 
@@ -706,7 +706,7 @@
             <span class="callout-text">But wait &mdash; if this is a <strong>CP system</strong>, shouldn&rsquo;t we see errors? We killed 1 of 3 nodes, but quorum only needs 2. <strong>CP kicks in when quorum is lost.</strong> Let&rsquo;s prove it.</span>
         </div>
     </div>
-    <span class="slide-num">12 / 35</span>
+    <span class="slide-num">12 / 36</span>
 </section>
 
 
@@ -726,7 +726,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Quorum = &lfloor;N/2&rfloor;+1. For 3 nodes, that&rsquo;s 2. Lose quorum &rarr; <strong style="color:var(--terracotta);">writes refused</strong>, not corrupted.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">13 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">13 / 36</span>
 </section>
 
 
@@ -758,7 +758,7 @@
             <span class="callout-text">Restore just 1 node &rarr; quorum restored &rarr; writes resume. The cluster <strong>never</strong> risked inconsistency. This is what you&rsquo;re buying with the latency penalty.</span>
         </div>
     </div>
-    <span class="slide-num">14 / 35</span>
+    <span class="slide-num">14 / 36</span>
 </section>
 
 
@@ -852,7 +852,7 @@
         </svg>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.6);margin-top:0;font-size:clamp(0.55rem,0.85vw,0.7rem);">When your connection lands on the leaseholder, the gateway skips the routing hop. Fewer round trips = <strong style="color:var(--sage);">lower latency</strong>.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">15 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">15 / 36</span>
 </section>
 
 
@@ -950,7 +950,7 @@
         </svg>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.6);margin-top:0;font-size:clamp(0.55rem,0.85vw,0.7rem);">Gateway &ne; Leaseholder. Your connection hits node 1, but the range&rsquo;s leaseholder is node 2. That&rsquo;s an <strong style="color:var(--terracotta);">extra network round trip</strong> before Raft even starts.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">16 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">16 / 36</span>
 </section>
 
 
@@ -973,7 +973,7 @@
             <div class="formula">Every write = leader + <span class="accent">1 network round-trip</span> to a follower (minimum)</div>
         </div>
     </div>
-    <span class="slide-num">17 / 35</span>
+    <span class="slide-num">17 / 36</span>
 </section>
 
 
@@ -1018,7 +1018,7 @@
         </svg>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.75);margin-top:clamp(0.3rem,0.6vh,0.5rem);">Leader + 1 fast follower = committed. The slow follower catches up later.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">18 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">18 / 36</span>
 </section>
 
 
@@ -1042,7 +1042,7 @@
             <span class="callout-text">But: election takes <strong>seconds</strong>. During that window, writes to affected ranges stall. This is the latency spike you&rsquo;ll observe.</span>
         </div>
     </div>
-    <span class="slide-num">19 / 35</span>
+    <span class="slide-num">19 / 36</span>
 </section>
 
 
@@ -1053,7 +1053,7 @@
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">What about transactions that span <em style="color:var(--warm);">multiple nodes?</em></h2>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.8rem,1.5vh,1.2rem);">Transfer $100 from account A (node 1) to account B (node 2).<br>Both must succeed or neither. Enter: Two-Phase Commit.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">20 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">20 / 36</span>
 </section>
 
 
@@ -1091,7 +1091,7 @@
             <span class="callout-text">Two different nodes &ldquo;own&rdquo; this data. You can&rsquo;t just write to both independently &mdash; <strong>what if one succeeds and the other fails?</strong> You&rsquo;d create or destroy money.</span>
         </div>
     </div>
-    <span class="slide-num">21 / 35</span>
+    <span class="slide-num">21 / 36</span>
 </section>
 
 
@@ -1118,7 +1118,7 @@
             <span class="callout-text"><strong>Cross-range?</strong> The gateway must talk to 2 leaseholders and run the prepare/commit protocol. That&rsquo;s the extra round trips you&rsquo;re paying for.</span>
         </div>
     </div>
-    <span class="slide-num">22 / 35</span>
+    <span class="slide-num">22 / 36</span>
 </section>
 
 
@@ -1162,7 +1162,7 @@
         </svg>
         <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.5rem);">Two network round-trips on the critical path. Each one is ~500 &mu;s in the same datacenter.</p>
     </div>
-    <span class="slide-num">23 / 35</span>
+    <span class="slide-num">23 / 36</span>
 </section>
 
 
@@ -1190,7 +1190,7 @@
             <span class="callout-text">Modern distributed SQL hasn&rsquo;t eliminated 2PC. It&rsquo;s made the failure window <strong>vanishingly small</strong> and recoverable.</span>
         </div>
     </div>
-    <span class="slide-num">24 / 35</span>
+    <span class="slide-num">24 / 36</span>
 </section>
 
 
@@ -1212,7 +1212,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Force a range split, then compare local vs. cross-range transaction latency.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">25 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">25 / 36</span>
 </section>
 
 
@@ -1221,21 +1221,57 @@
     <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
         <div class="section-marker reveal" style="color:var(--warm);border-color:var(--warm);">Results</div>
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Local vs. cross-range <em>latency</em></h2>
-        <table class="latency-table reveal" style="max-width:650px;">
-            <thead><tr><th>Scenario</th><th style="text-align:right;">TPS</th><th style="text-align:right;">p50</th><th style="text-align:right;">p99</th></tr></thead>
+        <table class="latency-table reveal" style="max-width:750px;">
+            <thead><tr><th>Scenario</th><th style="text-align:right;">TPS</th><th style="text-align:right;">p50</th><th style="text-align:right;">p99</th><th style="text-align:right;">Retry%</th></tr></thead>
             <tbody>
-                <tr><td>Local range, low contention</td><td style="font-family:var(--font-mono);text-align:right;">~359</td><td style="font-family:var(--font-mono);text-align:right;">~25 ms</td><td style="font-family:var(--font-mono);text-align:right;">~69 ms</td></tr>
-                <tr><td>Local range, high contention</td><td style="font-family:var(--font-mono);text-align:right;">~8</td><td style="font-family:var(--font-mono);text-align:right;">~683 ms</td><td style="font-family:var(--font-mono);text-align:right;">~5.9 s</td></tr>
-                <tr class="row-hot"><td>Cross-range, low contention</td><td style="font-family:var(--font-mono);text-align:right;">~302</td><td style="font-family:var(--font-mono);text-align:right;">~29 ms</td><td style="font-family:var(--font-mono);text-align:right;">~94 ms</td></tr>
-                <tr class="row-hot"><td>Cross-range, high contention</td><td style="font-family:var(--font-mono);text-align:right;">~144</td><td style="font-family:var(--font-mono);text-align:right;">~39 ms</td><td style="font-family:var(--font-mono);text-align:right;">~210 ms</td></tr>
+                <tr><td>Local, low contention</td><td style="font-family:var(--font-mono);text-align:right;">~916</td><td style="font-family:var(--font-mono);text-align:right;">9 ms</td><td style="font-family:var(--font-mono);text-align:right;">34 ms</td><td style="font-family:var(--font-mono);text-align:right;">0%</td></tr>
+                <tr style="color:var(--terracotta);"><td>Local, high contention</td><td style="font-family:var(--font-mono);text-align:right;">~9</td><td style="font-family:var(--font-mono);text-align:right;">544 ms</td><td style="font-family:var(--font-mono);text-align:right;">5.5 s</td><td style="font-family:var(--font-mono);text-align:right;font-weight:700;">53%</td></tr>
+                <tr><td>Cross-range, low cont.</td><td style="font-family:var(--font-mono);text-align:right;">~707</td><td style="font-family:var(--font-mono);text-align:right;">13 ms</td><td style="font-family:var(--font-mono);text-align:right;">35 ms</td><td style="font-family:var(--font-mono);text-align:right;">0%</td></tr>
+                <tr class="row-hot"><td>Cross-range, high cont.</td><td style="font-family:var(--font-mono);text-align:right;">~187</td><td style="font-family:var(--font-mono);text-align:right;">27 ms</td><td style="font-family:var(--font-mono);text-align:right;">195 ms</td><td style="font-family:var(--font-mono);text-align:right;">0.4%</td></tr>
             </tbody>
         </table>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">Cross-range + contention = 2PC overhead + serializable retries. The p99 blows up because some transactions retry <strong>multiple times</strong>.</span>
+            <span class="callout-text">The <strong>Retry%</strong> column is the tell &mdash; 53% vs 0.4%. The high-contention rows have almost identical key fanout, yet one collapses to 9 TPS and the other holds at 187. The next slide explains why.</span>
         </div>
     </div>
-    <span class="slide-num">26 / 35</span>
+    <span class="slide-num">26 / 36</span>
+</section>
+
+
+<!-- ─── SLIDE · WHY CROSS-RANGE IS FASTER UNDER CONTENTION ── -->
+<section class="slide" id="slide-txn-insight">
+    <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
+        <div class="section-marker reveal" style="color:var(--gold);border-color:var(--gold);">Insight</div>
+        <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Why is cross-range <em>20&times; faster</em> under contention?</h2>
+        <div class="two-col reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);flex:unset;">
+            <div class="col">
+                <span class="col-label" style="color:var(--terracotta);">Local high contention &mdash; 9 TPS, 53% retries</span>
+                <ul class="bullets" style="margin-top:clamp(0.3rem,0.6vh,0.4rem);">
+                    <li>Keys {1&ndash;5}: sender <strong>and</strong> receiver draw from the same pool</li>
+                    <li>Account 3 can be debited in tx&nbsp;A and credited in tx&nbsp;B &mdash; <strong>cross-role conflict</strong></li>
+                    <li>SSI detects conflict at commit &rarr; <strong>abort the loser entirely</strong></li>
+                    <li>Retries collide with other retries &rarr; exponential cascade</li>
+                    <li>One leaseholder serializes everything</li>
+                </ul>
+            </div>
+            <div class="col">
+                <span class="col-label" style="color:var(--sage);">Cross-range high contention &mdash; 187 TPS, 0.4% retries</span>
+                <ul class="bullets" style="margin-top:clamp(0.3rem,0.6vh,0.4rem);">
+                    <li>Debits: {498&ndash;500} &nbsp;&middot;&nbsp; Credits: {501&ndash;503} &mdash; <strong>disjoint sets</strong></li>
+                    <li>A sender can <em>never</em> be a receiver &mdash; cross-role conflicts are impossible</li>
+                    <li>Only same-role conflicts: two txns both debiting 498</li>
+                    <li>CockroachDB resolves with a <strong>timestamp push</strong>, not an abort</li>
+                    <li>Each leaseholder processes its side independently</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout callout-win reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
+            <span class="callout-icon" style="font-family:var(--font-mono);font-size:var(--small-size);color:var(--sage);">&#10003;</span>
+            <span class="callout-text">The range split at key 501 <em>accidentally</em> separated the two roles in the transfer onto different leaseholders. Same-role conflicts resolve with a timestamp push &mdash; no abort, no retry cascade. <strong>This is the distribution benefit: independent contention domains.</strong> It only works when your hot keys map cleanly to different ranges.</span>
+        </div>
+    </div>
+    <span class="slide-num">27 / 36</span>
 </section>
 
 
@@ -1265,7 +1301,7 @@
         <span class="k">continue</span>  <span class="c"># retry</span></div>
         </div>
     </div>
-    <span class="slide-num">27 / 35</span>
+    <span class="slide-num">28 / 36</span>
 </section>
 
 
@@ -1289,7 +1325,7 @@
             <span class="callout-text">CockroachDB <code>--max-offset</code> = 500ms. If clocks drift beyond that, the node <strong>self-terminates</strong>. NTP misconfiguration has taken down production clusters.</span>
         </div>
     </div>
-    <span class="slide-num">28 / 35</span>
+    <span class="slide-num">29 / 36</span>
 </section>
 
 
@@ -1312,7 +1348,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">US-East to EU-West = ~100ms. At that cost, max TPS per Raft group &asymp; <strong style="color:var(--gold);">3&ndash;7 commits/sec</strong>.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">29 / 35</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">30 / 36</span>
 </section>
 
 
@@ -1335,7 +1371,7 @@
 └──────────┘    └──────────┘    └──────────┘
   * = leaseholder    (leases spread across nodes)</div>
     </div>
-    <span class="slide-num">30 / 35</span>
+    <span class="slide-num">31 / 36</span>
 </section>
 
 
@@ -1369,7 +1405,7 @@
             <span class="callout-text">All queries are in <code>instrument.sql</code>. Keep the Admin UI open during every demo.</span>
         </div>
     </div>
-    <span class="slide-num">31 / 35</span>
+    <span class="slide-num">32 / 36</span>
 </section>
 
 
@@ -1394,7 +1430,7 @@
             <span class="callout-text">Fill this in with <strong>your own data</strong>. These numbers will vary by machine, row count, and workload.</span>
         </div>
     </div>
-    <span class="slide-num">32 / 35</span>
+    <span class="slide-num">33 / 36</span>
 </section>
 
 
@@ -1419,7 +1455,7 @@
             <span class="callout-text">Lesson 1 showed the ceiling. Lesson 2 showed the cost of the alternative. That tension drives the rest of the course.</span>
         </div>
     </div>
-    <span class="slide-num">33 / 35</span>
+    <span class="slide-num">34 / 36</span>
 </section>
 
 
@@ -1429,11 +1465,11 @@
     <div class="geo-accent geo-dot" style="bottom:20%;left:12%;"></div>
     <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;align-items:center;text-align:center;">
         <div class="reveal label" style="margin-bottom:clamp(1rem,3vh,2.5rem);">Next lesson</div>
-        <div class="big-question reveal" style="text-align:center;">How do you move data <em>between</em> systems in real time?</div>
+        <div class="big-question reveal" style="text-align:center;">How do you move data <em>between different</em> systems?</div>
         <div class="hr-editorial reveal" style="margin-top:clamp(1.5rem,3vh,2.5rem);width:min(300px,60vw);"><span>lesson 3</span></div>
         <p class="subtitle reveal" style="text-align:center;max-width:500px;margin-top:clamp(0.5rem,1vh,0.8rem);">Change Data Capture. Kafka. The streaming bridge between OLTP and the rest of your architecture.</p>
     </div>
-    <span class="slide-num">34 / 35</span>
+    <span class="slide-num">35 / 36</span>
 </section>
 
 
@@ -1453,7 +1489,7 @@
             <span class="callout-text">Reference <strong>your own benchmark data</strong>. Not generic blog post wisdom.</span>
         </div>
     </div>
-    <span class="slide-num">35 / 35</span>
+    <span class="slide-num">36 / 36</span>
 </section>
 
 
