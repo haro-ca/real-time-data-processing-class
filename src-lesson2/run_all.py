@@ -189,10 +189,9 @@ async def main(rows: int) -> None:
 
     scenarios = [
         ("Naive (1 conn)", lambda: bench_naive(rows)),
-        ("Async (10 conns)", lambda: bench_async(rows, 10)),
         ("Async (50 conns)", lambda: bench_async(rows, 50)),
-        ("COPY (batch=1000)", lambda: bench_copy(rows)),
-        ("COPY (4 parallel)", lambda: bench_parallel_copy(rows, connections=4)),
+        ("COPY (1 conn, batch=1000)", lambda: bench_copy(rows)),
+        ("COPY (4 conns, batch=1000)", lambda: bench_parallel_copy(rows, connections=4)),
         ("Hot row (50 conns, 10s)", lambda: bench_hotrow(50, 10)),
     ]
 

@@ -437,7 +437,7 @@
 </svg>
 
 <!-- ═══════════════════════════════════════════════════
-     LESSON 2: DISTRIBUTE OLTP — 27 SLIDES
+     LESSON 2: DISTRIBUTE OLTP — 30 SLIDES
      ═══════════════════════════════════════════════════ -->
 
 <!-- ─── SLIDE 1 · TITLE ──────────────────────────── -->
@@ -450,11 +450,36 @@
         <h1 class="display-title reveal">What happens when<br>you <em>distribute</em><br>OLTP?</h1>
         <p class="subtitle reveal" style="margin-top:clamp(0.5rem,1.2vh,1rem);">CockroachDB. Raft consensus. 2PC. The price of coordination.</p>
     </div>
-    <span class="slide-num">01 / 27</span>
+    <span class="slide-num">01 / 30</span>
 </section>
 
 
-<!-- ─── SLIDE 2 · LIVE DEMO: RUN BOTH BENCHMARKS ──── -->
+<!-- ─── SLIDE 2 · LAST CLASS RECAP ────────────────── -->
+<section class="slide" id="slide-recap">
+    <div class="slide-content" style="max-width:min(90vw,900px);margin:0 auto;">
+        <div class="section-marker reveal" style="color:var(--dusty-blue);border-color:var(--dusty-blue);">Last class&hellip;</div>
+        <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">The single-node <em>ceiling</em></h2>
+        <table class="latency-table reveal" style="max-width:780px;margin-top:clamp(0.3rem,0.6vh,0.5rem);font-size:clamp(0.55rem,0.85vw,0.7rem);">
+            <thead><tr><th>#</th><th>Scenario</th><th style="text-align:right;">TPS</th><th style="text-align:right;">vs Naive</th></tr></thead>
+            <tbody>
+                <tr><td>1</td><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">1,773</td><td style="font-family:var(--font-mono);text-align:right;">1.0&times;</td></tr>
+                <tr><td>2</td><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">11,650</td><td style="font-family:var(--font-mono);text-align:right;">6.6&times;</td></tr>
+                <tr style="color:var(--terracotta);"><td>3</td><td>Naive (1 conn, sync=off)</td><td style="font-family:var(--font-mono);text-align:right;">2,146</td><td style="font-family:var(--font-mono);text-align:right;">1.2&times;</td></tr>
+                <tr style="color:var(--terracotta);"><td>4</td><td>Async (50 conns, sync=off)</td><td style="font-family:var(--font-mono);text-align:right;">18,385</td><td style="font-family:var(--font-mono);text-align:right;">10.4&times;</td></tr>
+                <tr><td>5</td><td>COPY (1 conn, batch=1000, sync=on)</td><td style="font-family:var(--font-mono);text-align:right;">93,533</td><td style="font-family:var(--font-mono);text-align:right;">52.8&times;</td></tr>
+                <tr><td>6</td><td>COPY (4 conns, batch=1000, sync=on)</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">242,731</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">136.9&times;</td></tr>
+                <tr class="row-hot"><td>7</td><td>Hot row (50 conns, sync=on)</td><td style="font-family:var(--font-mono);text-align:right;">3,161</td><td style="font-family:var(--font-mono);text-align:right;">1.8&times;</td></tr>
+            </tbody>
+        </table>
+        <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
+            <span class="callout-text">Single Postgres, 100k rows. <span style="color:var(--terracotta);">sync=off trades durability &mdash; not an option for real OLTP.</span> So we turned sync back on and reached for COPY: bulk batching, not shortcuts. Hot row = contention ceiling. <strong>Can we do better with more nodes?</strong></span>
+        </div>
+    </div>
+    <span class="slide-num">02 / 30</span>
+</section>
+
+<!-- ─── SLIDE 3 · LIVE DEMO: RUN BOTH BENCHMARKS ──── -->
 <section class="slide" id="slide-1" style="background:var(--charcoal);">
     <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,800px);margin:0 auto;">
         <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Same workload, same table, different engine</div>
@@ -483,7 +508,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.5rem,1vh,0.8rem);">Same schema. Same <code style="color:rgba(255,255,255,0.5);">asyncpg</code> driver. 3 nodes, 6 CPUs, 12 GB RAM vs. 1 node, 2 CPUs, 4 GB.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">02 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">03 / 30</span>
 </section>
 
 <!-- ─── SLIDE 3 · REVEAL: HEAD-TO-HEAD ───────────── -->
@@ -494,18 +519,19 @@
         <table class="latency-table reveal" style="max-width:700px;margin-top:clamp(0.3rem,0.6vh,0.5rem);">
             <thead><tr><th>Scenario</th><th style="text-align:right;">Postgres</th><th style="text-align:right;">CockroachDB</th><th style="text-align:right;">Ratio</th></tr></thead>
             <tbody>
-                <tr><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">1,778 TPS</td><td style="font-family:var(--font-mono);text-align:right;">560 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">3.2&times;</td></tr>
-                <tr><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">11,657 TPS</td><td style="font-family:var(--font-mono);text-align:right;">2,829 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">4.1&times;</td></tr>
-                <tr><td>COPY (4 parallel)</td><td style="font-family:var(--font-mono);text-align:right;">226,726 TPS</td><td style="font-family:var(--font-mono);text-align:right;">18,556 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">12&times;</td></tr>
-                <tr class="row-hot"><td>Hot row (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">2,584 TPS</td><td style="font-family:var(--font-mono);text-align:right;">555 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">4.7&times;</td></tr>
+                <tr><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">1,773 TPS</td><td style="font-family:var(--font-mono);text-align:right;">490 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">3.6&times;</td></tr>
+                <tr><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">11,650 TPS</td><td style="font-family:var(--font-mono);text-align:right;">2,868 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">4.1&times;</td></tr>
+                <tr><td>COPY (1 conn, batch=1000)</td><td style="font-family:var(--font-mono);text-align:right;">93,533 TPS</td><td style="font-family:var(--font-mono);text-align:right;">9,377 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">10&times;</td></tr>
+                <tr><td>COPY (4 conns, batch=1000)</td><td style="font-family:var(--font-mono);text-align:right;">242,731 TPS</td><td style="font-family:var(--font-mono);text-align:right;">11,786 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">20.6&times;</td></tr>
+                <tr class="row-hot"><td>Hot row (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">3,161 TPS</td><td style="font-family:var(--font-mono);text-align:right;">622 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">5.1&times;</td></tr>
             </tbody>
         </table>
         <div class="callout callout-friction reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);">
             <span class="callout-icon">&#9888;</span>
-            <span class="callout-text">Every scenario is slower. COPY is <strong>12&times; slower</strong> because every batch goes through Raft consensus. There is no <code>synchronous_commit=off</code> escape hatch.</span>
+            <span class="callout-text">Every scenario is slower. Parallel COPY is <strong>20&times; slower</strong> &mdash; every batch goes through Raft consensus. There is no <code>synchronous_commit=off</code> escape hatch.</span>
         </div>
     </div>
-    <span class="slide-num">03 / 27</span>
+    <span class="slide-num">04 / 30</span>
 </section>
 
 <!-- ─── SLIDE 4 · LATENCY PERCENTILES ────────────── -->
@@ -516,17 +542,21 @@
         <table class="latency-table reveal" style="max-width:750px;margin-top:clamp(0.3rem,0.6vh,0.5rem);">
             <thead><tr><th>Scenario</th><th style="text-align:right;">PG p50</th><th style="text-align:right;">CRDB p50</th><th style="text-align:right;">PG p99</th><th style="text-align:right;">CRDB p99</th></tr></thead>
             <tbody>
-                <tr><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">0.5 ms</td><td style="font-family:var(--font-mono);text-align:right;">1.5 ms</td><td style="font-family:var(--font-mono);text-align:right;">1.0 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">5.0 ms</td></tr>
-                <tr><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">3.8 ms</td><td style="font-family:var(--font-mono);text-align:right;">16.2 ms</td><td style="font-family:var(--font-mono);text-align:right;">9.1 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">38.9 ms</td></tr>
-                <tr class="row-hot"><td>Hot row (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">32 ms</td><td style="font-family:var(--font-mono);text-align:right;">77 ms</td><td style="font-family:var(--font-mono);text-align:right;">91 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">286 ms</td></tr>
+                <tr><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">0.53 ms</td><td style="font-family:var(--font-mono);text-align:right;">1.78 ms</td><td style="font-family:var(--font-mono);text-align:right;">1.06 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">6.87 ms</td></tr>
+                <tr><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">3.95 ms</td><td style="font-family:var(--font-mono);text-align:right;">15.19 ms</td><td style="font-family:var(--font-mono);text-align:right;">9.01 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">48.78 ms</td></tr>
+                <tr class="row-hot"><td>Hot row (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">10.82 ms</td><td style="font-family:var(--font-mono);text-align:right;">69.75 ms</td><td style="font-family:var(--font-mono);text-align:right;">75.25 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">188.41 ms</td></tr>
             </tbody>
         </table>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);">
             <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">p50 tells you the <strong>typical</strong> cost. p99 tells you the <strong>worst case</strong>. Hot-row p99 at 286 ms means some transactions retried multiple times through serializable conflict resolution.</span>
+            <span class="callout-text">p50 tells you the <strong>typical</strong> cost. p99 tells you the <strong>worst case</strong>. Hot-row p99 at 188 ms means some transactions retried multiple times through serializable conflict resolution.</span>
+        </div>
+        <div class="callout reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);background:rgba(0,0,0,0.03);border-left:3px solid var(--dusty-blue);">
+            <span class="callout-icon" style="font-family:var(--font-display);font-size:var(--small-size);color:var(--dusty-blue);">p<em>X</em></span>
+            <span class="callout-text"><strong>Remember:</strong> p<em>X</em> = <em>X</em>% of requests finished at or below this time. Sort 10 latencies: 1, 1, 2, 2, <strong style="color:var(--dusty-blue);">3</strong>, 3, 4, 5, 6, <strong style="color:var(--terracotta);">9</strong> &rarr; <span style="color:var(--dusty-blue);">p50&nbsp;=&nbsp;3&nbsp;ms</span>, <span style="color:var(--terracotta);">p99&nbsp;&asymp;&nbsp;9&nbsp;ms</span>.</span>
         </div>
     </div>
-    <span class="slide-num">04 / 27</span>
+    <span class="slide-num">05 / 30</span>
 </section>
 
 <!-- ─── SLIDE 5 · THE QUESTION ───────────────────── -->
@@ -535,9 +565,9 @@
     <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;align-items:center;text-align:center;">
         <div class="reveal label" style="margin-bottom:clamp(1rem,3vh,2.5rem);">The real question</div>
         <div class="big-question reveal" style="text-align:center;">If distribution makes everything <em>slower</em>&hellip; why does anyone do it?</div>
-        <p class="subtitle reveal" style="text-align:center;margin-top:clamp(0.8rem,1.5vh,1.2rem);max-width:600px;">This lesson answers that. But first: <strong>why</strong> is it slower? Every mechanism you study today exists to either reduce coordination rounds or tolerate the latency they introduce.</p>
+        <p class="subtitle reveal" style="text-align:center;margin-top:clamp(0.8rem,1.5vh,1.2rem);max-width:600px;">A related question that coincidentally has the same answer is: <strong>why</strong> is it slower?</p>
     </div>
-    <span class="slide-num">05 / 27</span>
+    <span class="slide-num">06 / 30</span>
 </section>
 
 <!-- ─── SLIDE 5 · THE NETWORK CHANGES EVERYTHING ──── -->
@@ -561,7 +591,7 @@
             <span class="callout-text">In Lesson 1, the bottleneck was WAL fsync at ~10&ndash;50 &mu;s. Now add <strong>500 &mu;s minimum</strong> per coordination round. That&rsquo;s a 10&ndash;50&times; penalty from physics alone.</span>
         </div>
     </div>
-    <span class="slide-num">06 / 27</span>
+    <span class="slide-num">07 / 30</span>
 </section>
 
 
@@ -597,9 +627,33 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">07 / 27</span>
+    <span class="slide-num">08 / 30</span>
 </section>
 
+
+<!-- ─── SLIDE · CAP: GOOGLE DOC ANALOGY ──────────── -->
+<section class="slide" id="slide-cap-analogy">
+    <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;">
+        <div class="section-marker reveal" style="color:var(--dusty-blue);border-color:var(--dusty-blue);">CAP &middot; in plain English</div>
+        <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Imagine a shared <em>Google Doc</em></h2>
+        <ul class="bullets reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">
+            <li><strong>Consistency:</strong> everyone sees the exact same version, instantly</li>
+            <li><strong>Availability:</strong> you can always edit it, no matter what</li>
+            <li><strong>Partition tolerance:</strong> even if the internet splits users into groups, the doc still works</li>
+        </ul>
+        <div class="two-col reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);flex:unset;">
+            <div class="col">
+                <span class="col-label" style="color:var(--dusty-blue);">If the network splits&hellip; CP</span>
+                <p class="subtitle" style="margin-top:0.3rem;">Block editing until sync is restored. Nobody sees stale data.</p>
+            </div>
+            <div class="col">
+                <span class="col-label" style="color:var(--terracotta);">If the network splits&hellip; AP</span>
+                <p class="subtitle" style="margin-top:0.3rem;">Allow edits on both sides, but risk conflicts you have to reconcile later.</p>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">09 / 30</span>
+</section>
 
 <!-- ─── SLIDE 6 · WHY CP FOR OLTP ────────────────── -->
 <section class="slide" id="slide-5" style="background:var(--charcoal);">
@@ -612,7 +666,7 @@
             <span class="callout-text" style="color:rgba(255,255,255,0.85);">Kleppmann&rsquo;s critique: CAP is about a very specific consistency (linearizability) and a very specific availability (every non-failing node responds). Real systems operate between these extremes.</span>
         </div>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">08 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">10 / 30</span>
 </section>
 
 
@@ -632,7 +686,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">2 of 3 nodes alive = quorum. Writes continue. <strong style="color:var(--sage);">This is what you&rsquo;re buying.</strong></p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">09 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">11 / 30</span>
 </section>
 
 
@@ -666,7 +720,105 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">10 / 27</span>
+    <span class="slide-num">12 / 30</span>
+</section>
+
+
+<!-- ─── SLIDE · WRITE PATH DIAGRAM ─────────────────── -->
+<section class="slide" id="slide-write-path" style="background:var(--charcoal);">
+    <div class="slide-content" style="align-items:center;justify-content:center;max-width:min(96vw,1200px);margin:0 auto;padding:0 1vw;">
+        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:0.15rem;font-size:0.6rem;">The full picture</div>
+        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1rem,2.2vw,1.5rem);margin-bottom:0.15rem;">One INSERT, <em style="color:var(--terracotta);">three fsyncs</em></h2>
+        <svg class="seq-diagram reveal" viewBox="0 0 520 260" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:100%;height:clamp(280px,58vh,550px);">
+            <!-- Actors -->
+            <rect x="5" y="2" width="55" height="18" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" rx="3"/>
+            <text x="32" y="14" style="font-family:var(--font-mono);font-size:8px;fill:rgba(255,255,255,0.9);text-anchor:middle;font-weight:700;">Client</text>
+
+            <rect x="110" y="2" width="80" height="18" fill="rgba(255,255,255,0.08)" stroke="var(--dusty-blue)" stroke-width="1.2" rx="3"/>
+            <text x="150" y="14" style="font-family:var(--font-mono);font-size:7px;fill:rgba(255,255,255,0.9);text-anchor:middle;font-weight:700;">Node 1 (GW)</text>
+
+            <rect x="250" y="2" width="100" height="18" fill="rgba(255,255,255,0.08)" stroke="var(--sage)" stroke-width="1.2" rx="3"/>
+            <text x="300" y="14" style="font-family:var(--font-mono);font-size:7px;fill:rgba(255,255,255,0.9);text-anchor:middle;font-weight:700;">Node 2 (Leasehldr)</text>
+
+            <rect x="410" y="2" width="80" height="18" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.4)" stroke-width="1.2" rx="3"/>
+            <text x="450" y="14" style="font-family:var(--font-mono);font-size:7px;fill:rgba(255,255,255,0.9);text-anchor:middle;font-weight:700;">Node 3</text>
+
+            <!-- Lifelines -->
+            <line x1="32" y1="20" x2="32" y2="255" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="5 4"/>
+            <line x1="150" y1="20" x2="150" y2="255" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="5 4"/>
+            <line x1="300" y1="20" x2="300" y2="255" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="5 4"/>
+            <line x1="450" y1="20" x2="450" y2="255" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="5 4"/>
+
+            <!-- Step 1: Client → Gateway -->
+            <line x1="32" y1="38" x2="147" y2="38" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+            <text x="55" y="33" style="font-family:var(--font-mono);font-size:7px;fill:rgba(255,255,255,0.6);">INSERT INTO orders...</text>
+
+            <!-- Step 2: Gateway parses, routes to leaseholder -->
+            <rect x="120" y="44" width="60" height="14" fill="rgba(255,255,255,0.05)" stroke="var(--dusty-blue)" stroke-width="0.8" stroke-dasharray="3 2" rx="2"/>
+            <text x="150" y="53" style="font-family:var(--font-mono);font-size:6px;fill:var(--dusty-blue);text-anchor:middle;">SQL parse+plan</text>
+
+            <line x1="150" y1="64" x2="297" y2="64" stroke="var(--dusty-blue)" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+            <text x="185" y="60" style="font-family:var(--font-mono);font-size:7px;fill:var(--dusty-blue);">route to leaseholder</text>
+
+            <!-- Step 3: Leaseholder writes local WAL -->
+            <rect x="270" y="72" width="60" height="14" fill="rgba(143,191,143,0.15)" stroke="var(--sage)" stroke-width="0.8" rx="2"/>
+            <text x="300" y="81" style="font-family:var(--font-mono);font-size:6px;fill:var(--sage);text-anchor:middle;">WAL fsync ①</text>
+
+            <!-- Step 4: Leaseholder → Followers (Raft AppendEntries) -->
+            <line x1="300" y1="94" x2="153" y2="94" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+            <text x="190" y="90" style="font-family:var(--font-mono);font-size:7px;fill:rgba(255,255,255,0.5);">AppendEntries</text>
+            <line x1="300" y1="100" x2="447" y2="100" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+
+            <!-- Step 5: Followers write WAL -->
+            <rect x="120" y="106" width="60" height="14" fill="rgba(143,191,143,0.15)" stroke="var(--sage)" stroke-width="0.8" rx="2"/>
+            <text x="150" y="115" style="font-family:var(--font-mono);font-size:6px;fill:var(--sage);text-anchor:middle;">WAL fsync ②</text>
+
+            <rect x="420" y="106" width="60" height="14" fill="rgba(143,191,143,0.15)" stroke="var(--sage)" stroke-width="0.8" rx="2"/>
+            <text x="450" y="115" style="font-family:var(--font-mono);font-size:6px;fill:var(--sage);text-anchor:middle;">WAL fsync ③</text>
+
+            <!-- Step 6: ACKs back to leaseholder -->
+            <line x1="150" y1="130" x2="297" y2="130" stroke="#8fbf8f" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+            <text x="190" y="126" style="font-family:var(--font-mono);font-size:7px;fill:#8fbf8f;">ACK</text>
+
+            <!-- Quorum box -->
+            <rect style="fill:#8fbf8f;opacity:0.18;rx:2;" x="265" y="138" width="75" height="16"/>
+            <text x="272" y="149" style="font-family:var(--font-mono);font-size:7px;fill:#8fbf8f;font-weight:700;">QUORUM = 2 &#10003;</text>
+
+            <!-- Late ACK from node 3 -->
+            <line style="stroke:rgba(255,255,255,0.25);stroke-width:1;stroke-dasharray:3 3;" x1="450" y1="140" x2="303" y2="140"/>
+            <text x="360" y="137" style="font-family:var(--font-mono);font-size:6px;fill:rgba(255,255,255,0.3);">ACK (late)</text>
+
+            <!-- Step 7: Leaseholder → Gateway → Client -->
+            <line x1="300" y1="162" x2="153" y2="162" stroke="#8fbf8f" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+            <text x="200" y="158" style="font-family:var(--font-mono);font-size:7px;fill:#8fbf8f;">committed</text>
+
+            <line x1="150" y1="178" x2="35" y2="178" stroke="#8fbf8f" stroke-width="1.2" marker-end="url(#seq-arrow-light)"/>
+            <text x="55" y="174" style="font-family:var(--font-mono);font-size:7px;fill:#8fbf8f;">COMMIT ACK</text>
+
+            <!-- Annotations: storage boxes at bottom -->
+            <rect x="115" y="200" width="70" height="28" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" stroke-width="0.8" rx="3"/>
+            <text x="150" y="212" style="font-family:var(--font-mono);font-size:6px;fill:rgba(255,255,255,0.5);text-anchor:middle;">Pebble (LSM)</text>
+            <text x="150" y="222" style="font-family:var(--font-mono);font-size:5.5px;fill:rgba(255,255,255,0.3);text-anchor:middle;">WAL + SST files</text>
+
+            <rect x="265" y="200" width="70" height="28" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" stroke-width="0.8" rx="3"/>
+            <text x="300" y="212" style="font-family:var(--font-mono);font-size:6px;fill:rgba(255,255,255,0.5);text-anchor:middle;">Pebble (LSM)</text>
+            <text x="300" y="222" style="font-family:var(--font-mono);font-size:5.5px;fill:rgba(255,255,255,0.3);text-anchor:middle;">WAL + SST files</text>
+
+            <rect x="415" y="200" width="70" height="28" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.2)" stroke-width="0.8" rx="3"/>
+            <text x="450" y="212" style="font-family:var(--font-mono);font-size:6px;fill:rgba(255,255,255,0.5);text-anchor:middle;">Pebble (LSM)</text>
+            <text x="450" y="222" style="font-family:var(--font-mono);font-size:5.5px;fill:rgba(255,255,255,0.3);text-anchor:middle;">WAL + SST files</text>
+
+            <!-- Dashed lines from lifelines to storage -->
+            <line x1="150" y1="190" x2="150" y2="200" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            <line x1="300" y1="190" x2="300" y2="200" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            <line x1="450" y1="190" x2="450" y2="200" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+
+            <!-- Bottom label -->
+            <text x="260" y="248" style="font-family:var(--font-body);font-size:7.5px;fill:rgba(255,255,255,0.4);text-anchor:middle;">Each node has its own storage engine &mdash; there is no shared disk</text>
+        </svg>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.6);margin-top:0.15rem;font-size:clamp(0.45rem,0.7vw,0.55rem);">Gateway &ne; Leaseholder. Your connection hits node 1, but the write may be coordinated by node 2. That&rsquo;s an extra hop <em>before</em> Raft even starts.</p>
+    </div>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">13 / 30</span>
 </section>
 
 
@@ -689,7 +841,7 @@
             <div class="formula">Every write = leader + <span class="accent">1 network round-trip</span> to a follower (minimum)</div>
         </div>
     </div>
-    <span class="slide-num">11 / 27</span>
+    <span class="slide-num">14 / 30</span>
 </section>
 
 
@@ -734,7 +886,7 @@
         </svg>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.75);margin-top:clamp(0.3rem,0.6vh,0.5rem);">Leader + 1 fast follower = committed. The slow follower catches up later.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">12 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">15 / 30</span>
 </section>
 
 
@@ -758,7 +910,7 @@
             <span class="callout-text">But: election takes <strong>seconds</strong>. During that window, writes to affected ranges stall. This is the latency spike you&rsquo;ll observe.</span>
         </div>
     </div>
-    <span class="slide-num">13 / 27</span>
+    <span class="slide-num">16 / 30</span>
 </section>
 
 
@@ -769,7 +921,7 @@
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">What about transactions that span <em style="color:var(--warm);">multiple nodes?</em></h2>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.8rem,1.5vh,1.2rem);">Transfer $100 from account A (node 1) to account B (node 2).<br>Both must succeed or neither. Enter: Two-Phase Commit.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">14 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">17 / 30</span>
 </section>
 
 
@@ -813,7 +965,7 @@
         </svg>
         <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.5rem);">Two network round-trips on the critical path. Each one is ~500 &mu;s in the same datacenter.</p>
     </div>
-    <span class="slide-num">15 / 27</span>
+    <span class="slide-num">18 / 30</span>
 </section>
 
 
@@ -841,7 +993,7 @@
             <span class="callout-text">Modern distributed SQL hasn&rsquo;t eliminated 2PC. It&rsquo;s made the failure window <strong>vanishingly small</strong> and recoverable.</span>
         </div>
     </div>
-    <span class="slide-num">16 / 27</span>
+    <span class="slide-num">19 / 30</span>
 </section>
 
 
@@ -863,7 +1015,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Force a range split, then compare local vs. cross-range transaction latency.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">17 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">20 / 30</span>
 </section>
 
 
@@ -886,7 +1038,7 @@
             <span class="callout-text">Cross-range + contention = 2PC overhead + serializable retries. The p99 blows up because some transactions retry <strong>multiple times</strong>.</span>
         </div>
     </div>
-    <span class="slide-num">18 / 27</span>
+    <span class="slide-num">21 / 30</span>
 </section>
 
 
@@ -916,7 +1068,7 @@
         <span class="k">continue</span>  <span class="c"># retry</span></div>
         </div>
     </div>
-    <span class="slide-num">19 / 27</span>
+    <span class="slide-num">22 / 30</span>
 </section>
 
 
@@ -940,7 +1092,7 @@
             <span class="callout-text">CockroachDB <code>--max-offset</code> = 500ms. If clocks drift beyond that, the node <strong>self-terminates</strong>. NTP misconfiguration has taken down production clusters.</span>
         </div>
     </div>
-    <span class="slide-num">20 / 27</span>
+    <span class="slide-num">23 / 30</span>
 </section>
 
 
@@ -963,7 +1115,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">US-East to EU-West = ~100ms. At that cost, max TPS per Raft group &asymp; <strong style="color:var(--gold);">3&ndash;7 commits/sec</strong>.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">21 / 27</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">24 / 30</span>
 </section>
 
 
@@ -986,7 +1138,7 @@
 └──────────┘    └──────────┘    └──────────┘
   * = leaseholder    (leases spread across nodes)</div>
     </div>
-    <span class="slide-num">22 / 27</span>
+    <span class="slide-num">25 / 30</span>
 </section>
 
 
@@ -1020,7 +1172,7 @@
             <span class="callout-text">All queries are in <code>instrument.sql</code>. Keep the Admin UI open during every demo.</span>
         </div>
     </div>
-    <span class="slide-num">23 / 27</span>
+    <span class="slide-num">26 / 30</span>
 </section>
 
 
@@ -1045,7 +1197,7 @@
             <span class="callout-text">Fill this in with <strong>your own data</strong>. These numbers will vary by machine, row count, and workload.</span>
         </div>
     </div>
-    <span class="slide-num">24 / 27</span>
+    <span class="slide-num">27 / 30</span>
 </section>
 
 
@@ -1070,7 +1222,7 @@
             <span class="callout-text">Lesson 1 showed the ceiling. Lesson 2 showed the cost of the alternative. That tension drives the rest of the course.</span>
         </div>
     </div>
-    <span class="slide-num">25 / 27</span>
+    <span class="slide-num">28 / 30</span>
 </section>
 
 
@@ -1084,7 +1236,7 @@
         <div class="hr-editorial reveal" style="margin-top:clamp(1.5rem,3vh,2.5rem);width:min(300px,60vw);"><span>lesson 3</span></div>
         <p class="subtitle reveal" style="text-align:center;max-width:500px;margin-top:clamp(0.5rem,1vh,0.8rem);">Change Data Capture. Kafka. The streaming bridge between OLTP and the rest of your architecture.</p>
     </div>
-    <span class="slide-num">26 / 27</span>
+    <span class="slide-num">29 / 30</span>
 </section>
 
 
@@ -1104,7 +1256,7 @@
             <span class="callout-text">Reference <strong>your own benchmark data</strong>. Not generic blog post wisdom.</span>
         </div>
     </div>
-    <span class="slide-num">27 / 27</span>
+    <span class="slide-num">30 / 30</span>
 </section>
 
 

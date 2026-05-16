@@ -32,6 +32,10 @@ async def run(connections: int, kill_after: float, observe: float) -> None:
 
     pool = await asyncpg.create_pool(DSN, min_size=connections, max_size=connections)
 
+    # Clean slate so row-count comparison is accurate
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE orders")
+
     # Tracking
     stats = {
         "total": 0,
@@ -121,12 +125,11 @@ async def run(connections: int, kill_after: float, observe: float) -> None:
     print(f"  Phase 2: Observing recovery ({remaining:.0f}s remaining)\n")
     await asyncio.sleep(remaining)
 
-    # Stop
+    # Stop — let workers finish their current insert before exiting
     running = False
+    await asyncio.gather(*tasks, return_exceptions=True)
     reporter_task.cancel()
-    for t in tasks:
-        t.cancel()
-    await asyncio.gather(*tasks, reporter_task, return_exceptions=True)
+    await asyncio.gather(reporter_task, return_exceptions=True)
 
     # Count what's in the database
     conn = await asyncpg.connect(DSN)
@@ -145,12 +148,14 @@ async def run(connections: int, kill_after: float, observe: float) -> None:
     print(f"    Total errors:         {stats['errors']:>10,}")
     print(f"    Client-side inserts:  {stats['total']:>10,}")
     print(f"    Database row count:   {db_count:>10,}")
-    lost = stats["total"] - db_count
-    if lost <= 0:
-        print("\n  ✓ ZERO data loss. Every acknowledged row survived.")
+    diff = db_count - stats["total"]
+    if diff >= 0:
+        print(f"\n  ✓ ZERO data loss. Every acknowledged row survived.")
+        if diff > 0:
+            print(f"    ({diff} extra rows committed mid-cancel before counter incremented)")
         print("    This is what you're buying with the latency penalty.")
     else:
-        print(f"\n  ⚠ {lost:,} rows unaccounted for (likely in-flight during errors)")
+        print(f"\n  ⚠ {-diff:,} rows missing — acknowledged by client but not in DB")
     print("=" * 60)
 
     # Restart the killed node

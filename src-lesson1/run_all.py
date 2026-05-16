@@ -5,8 +5,8 @@ Usage:
 
 Runs:
     1. Naive (1 conn, synchronous)
-    2. Async (10 conns)
-    3. Async (50 conns)
+    2. Async (50 conns)
+    3. Naive (1 conn, sync_commit=off)
     4. Async (50 conns, sync_commit=off)
     5. COPY batch (batch_size=1000)
     6. COPY (4 parallel)
@@ -50,9 +50,9 @@ async def reset():
     await conn.close()
 
 
-async def bench_naive(rows: int) -> dict:
+async def bench_naive(rows: int, no_sync: bool = False) -> dict:
     conn = await asyncpg.connect(DSN)
-    await conn.execute("SET synchronous_commit = on")
+    await conn.execute(f"SET synchronous_commit = {'off' if no_sync else 'on'}")
     lats = []
     t0 = time.monotonic()
     for _ in range(rows):
@@ -189,8 +189,8 @@ async def main(rows: int) -> None:
 
     scenarios = [
         ("Naive (1 conn, sync)", lambda: bench_naive(rows)),
-        ("Async (10 conns)", lambda: bench_async(rows, 10)),
         ("Async (50 conns)", lambda: bench_async(rows, 50)),
+        ("Naive (1 conn, sync=off)", lambda: bench_naive(rows, no_sync=True)),
         ("Async (50, sync=off)", lambda: bench_async(rows, 50, no_sync=True)),
         ("COPY (batch=1000)", lambda: bench_copy(rows)),
         ("COPY (4 parallel)", lambda: bench_parallel_copy(rows, connections=4)),
