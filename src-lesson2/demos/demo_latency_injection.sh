@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================
 # Inject network latency between CockroachDB nodes to simulate
-# cross-region deployment. Uses `tc` (traffic control) inside
-# the Docker containers.
+# cross-region deployment. Uses `tc` (traffic control) via a
+# netshoot sidecar that shares each container's network namespace.
 #
 # Usage:
 #   ./demos/demo_latency_injection.sh add 50     # add 50ms latency
@@ -20,17 +20,28 @@ ACTION="${1:-add}"
 DELAY_MS="${2:-50}"
 CONTAINERS=("lesson2-crdb-1" "lesson2-crdb-2" "lesson2-crdb-3")
 
+# Run a tc command inside a container's network namespace via netshoot.
+# The CockroachDB image (RHEL 9 minimal) has no package manager and no tc;
+# netshoot has tc pre-installed and shares the target network namespace.
+tc_in() {
+    local container="$1"
+    shift
+    docker run --rm \
+        --network "container:${container}" \
+        --cap-add NET_ADMIN \
+        nicolaka/netshoot \
+        tc "$@" 2>&1
+}
+
 add_latency() {
     echo "Adding ${DELAY_MS}ms latency to all inter-node traffic..."
     echo "  (simulating cross-region deployment)"
     echo ""
     for c in "${CONTAINERS[@]}"; do
-        # tc needs NET_ADMIN — Docker grants it by default
-        docker exec "$c" bash -c "
-            tc qdisc del dev eth0 root 2>/dev/null || true
-            tc qdisc add dev eth0 root netem delay ${DELAY_MS}ms ${DELAY_MS}ms
-        " 2>/dev/null && echo "  ✓ ${c}: +${DELAY_MS}ms delay" \
-          || echo "  ⚠ ${c}: tc failed (may need --cap-add=NET_ADMIN)"
+        tc_in "$c" qdisc del dev eth0 root > /dev/null 2>&1 || true
+        tc_in "$c" qdisc add dev eth0 root netem delay "${DELAY_MS}ms" \
+            && echo "  ✓ ${c}: +${DELAY_MS}ms delay" \
+            || echo "  ✗ ${c}: failed to inject latency"
     done
     echo ""
     echo "  Latency injected. Now re-run benchmarks:"
@@ -45,9 +56,9 @@ add_latency() {
 remove_latency() {
     echo "Removing injected latency..."
     for c in "${CONTAINERS[@]}"; do
-        docker exec "$c" bash -c "tc qdisc del dev eth0 root 2>/dev/null || true" \
+        tc_in "$c" qdisc del dev eth0 root 2>/dev/null \
             && echo "  ✓ ${c}: latency removed" \
-            || echo "  ⚠ ${c}: nothing to remove"
+            || echo "  ✓ ${c}: nothing to remove"
     done
     echo ""
     echo "  Network restored to normal."
