@@ -235,6 +235,7 @@
         .callout-friction { background: rgba(196, 85, 61, 0.07); border-color: var(--terracotta); }
         .callout-win { background: var(--sage-dim); border-color: var(--sage); }
         .callout-icon { flex-shrink: 0; font-size: clamp(0.75rem, 1.2vw, 0.95rem); }
+        .callout-icon svg { width: 1em; height: 1em; vertical-align: middle; }
         .callout-text {
             font-family: var(--font-body); font-size: var(--small-size);
             color: var(--ink); line-height: 1.45;
@@ -548,7 +549,7 @@
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.6rem,4vw,2.8rem);">For bank balances, AP with last-write-wins<br><em style="color:var(--terracotta);">can literally lose money.</em></h2>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.8rem,1.5vh,1.2rem);">Two nodes independently accepting transfers on the same account = inconsistent state. CP refuses the write rather than risk it.</p>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);text-align:left;">
-            <span class="callout-icon">&#128161;</span>
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
             <span class="callout-text" style="color:rgba(255,255,255,0.85);">Kleppmann&rsquo;s critique: CAP is about a very specific consistency (linearizability) and a very specific availability (every non-failing node responds). Real systems operate between these extremes.</span>
         </div>
     </div>
@@ -717,7 +718,7 @@
             <span class="callout-text">CockroachDB solves this with <strong>parallel commits</strong>: the coordinator writes the transaction status to a distributed record in parallel with the final batch of writes, so participants can discover the outcome independently.</span>
         </div>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">
-            <span class="callout-icon">&#128161;</span>
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
             <span class="callout-text">Modern distributed SQL hasn&rsquo;t eliminated 2PC. It&rsquo;s made the failure window <strong>vanishingly small</strong> and recoverable.</span>
         </div>
     </div>
@@ -836,7 +837,7 @@
             </tbody>
         </table>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
-            <span class="callout-icon">&#128161;</span>
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
             <span class="callout-text">The gap is <strong>Raft consensus</strong> on every commit. Hot row p99 at 286ms: some transactions waited through multiple serializable retries.</span>
         </div>
     </div>
@@ -941,7 +942,7 @@
             </tbody>
         </table>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
-            <span class="callout-icon">&#128161;</span>
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
             <span class="callout-text">Cross-range + contention = 2PC overhead + serializable retries. The p99 blows up because some transactions retry <strong>multiple times</strong>.</span>
         </div>
     </div>
@@ -1049,7 +1050,7 @@
             </tbody>
         </table>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
-            <span class="callout-icon">&#128161;</span>
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
             <span class="callout-text">Fill this in with <strong>your own data</strong>. These numbers will vary by machine, row count, and workload.</span>
         </div>
     </div>
@@ -1105,7 +1106,7 @@
             <li><strong>One-page recommendation:</strong> &ldquo;For an OLTP workload doing 20k TPS with 99.99% availability &mdash; which would you choose and why?&rdquo;</li>
         </ul>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);">
-            <span class="callout-icon">&#128161;</span>
+            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
             <span class="callout-text">Reference <strong>your own benchmark data</strong>. Not generic blog post wisdom.</span>
         </div>
     </div>
