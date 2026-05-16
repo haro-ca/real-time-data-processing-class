@@ -28,12 +28,12 @@ RESET = "\033[0m"
 
 def banner(num: int, title: str, slide: str) -> None:
     width = 64
-    print()
-    print(f"{CYAN}{'━' * width}{RESET}")
-    print(f"{CYAN}  Demo {num}{RESET}  {BOLD}{title}{RESET}")
-    print(f"{DIM}  Slide: {slide}{RESET}")
-    print(f"{CYAN}{'━' * width}{RESET}")
-    print()
+    print(flush=True)
+    print(f"{CYAN}{'━' * width}{RESET}", flush=True)
+    print(f"{CYAN}  Demo {num}{RESET}  {BOLD}{title}{RESET}", flush=True)
+    print(f"{DIM}  Slide: {slide}{RESET}", flush=True)
+    print(f"{CYAN}{'━' * width}{RESET}", flush=True)
+    print(flush=True)
 
 
 def pause(next_demo: str | None = None) -> None:
@@ -99,26 +99,11 @@ async def demo_distributed_txn(transfers: int = 2000, connections: int = 10) -> 
 # ── Demo 5: Latency injection ──────────────────────────────────
 async def demo_latency_injection(rows: int) -> None:
     banner(5, "Latency Injection — Simulating Cross-Region", "slide 25")
-    print(f"{DIM}  Adding 50ms latency between nodes with tc (traffic control).{RESET}")
-    print(f"{DIM}  Then re-running benchmarks to see the impact.{RESET}")
+    print(f"{DIM}  Baseline → inject 50ms → re-run → remove. All in one script.{RESET}")
     print()
 
-    script = os.path.join(os.path.dirname(__file__), "demos", "demo_latency_injection.sh")
-
-    # Add latency
-    print(f"{BOLD}Step 1: Inject 50ms latency{RESET}")
-    subprocess.run(["bash", script, "add", "50"], check=True)
-
-    # Re-run a quick benchmark
-    print(f"\n{BOLD}Step 2: Re-run benchmark with latency{RESET}")
-    from run_all import main as bench_main
-    await bench_main(min(rows, 5000))  # fewer rows — it'll be slow
-
-    # Remove latency
-    print(f"\n{BOLD}Step 3: Remove latency{RESET}")
-    subprocess.run(["bash", script, "remove"], check=True)
-
-    print(f"\n{GREEN}  ✓ Network restored. Compare these numbers with Demo 1.{RESET}")
+    script = os.path.join(os.path.dirname(__file__), "demos", "demo_latency_injection.py")
+    subprocess.run([sys.executable, script, "--rows", str(min(rows, 500))], check=True)
 
 
 # ── Orchestrator ───────────────────────────────────────────────
