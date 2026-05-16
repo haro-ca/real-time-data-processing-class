@@ -437,7 +437,7 @@
 </svg>
 
 <!-- ═══════════════════════════════════════════════════
-     LESSON 2: DISTRIBUTE OLTP — 28 SLIDES
+     LESSON 2: DISTRIBUTE OLTP — 26 SLIDES
      ═══════════════════════════════════════════════════ -->
 
 <!-- ─── SLIDE 1 · TITLE ──────────────────────────── -->
@@ -450,44 +450,77 @@
         <h1 class="display-title reveal">What happens when<br>you <em>distribute</em><br>OLTP?</h1>
         <p class="subtitle reveal" style="margin-top:clamp(0.5rem,1.2vh,1rem);">CockroachDB. Raft consensus. 2PC. The price of coordination.</p>
     </div>
-    <span class="slide-num">01 / 28</span>
+    <span class="slide-num">01 / 26</span>
 </section>
 
 
-<!-- ─── SLIDE 2 · HOOK: THE BENCHMARK ──────────────── -->
+<!-- ─── SLIDE 2 · LIVE DEMO: RUN BOTH BENCHMARKS ──── -->
 <section class="slide" id="slide-1" style="background:var(--charcoal);">
-    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,750px);margin:0 auto;">
+    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,800px);margin:0 auto;">
         <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Same workload, same table, different engine</div>
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">More nodes, more hardware&hellip;<br><em style="color:var(--terracotta);">faster or slower?</em></h2>
-        <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:620px;flex:unset;">
-            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">head-to-head &mdash; 100k rows</span></div>
-            <div class="code-body" style="font-size:clamp(0.5rem,0.8vw,0.65rem);"><span class="v">Scenario</span>                  <span class="c">Postgres    CockroachDB   Ratio</span>
-<span class="p">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>
-  Naive (1 conn)         <span class="g">1,778</span> TPS     <span class="g">560</span> TPS     <span class="s">3.2&times; slower</span>
-  Async (50 conns)      <span class="g">11,657</span> TPS   <span class="g">2,829</span> TPS     <span class="s">4.1&times; slower</span>
-  COPY (4 parallel)    <span class="g">226,726</span> TPS  <span class="g">18,556</span> TPS    <span class="s">12&times;  slower</span>
-  Hot row (50 conns)     <span class="g">2,584</span> TPS     <span class="g">555</span> TPS     <span class="s">4.7&times; slower</span></div>
+        <div class="two-col reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem);flex:unset;gap:clamp(0.5rem,1.5vw,1rem);">
+            <div class="col" style="flex:1;">
+                <div class="code-block" style="flex:unset;">
+                    <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">Step 1 &mdash; Postgres</span></div>
+                    <div class="code-body" style="font-size:clamp(0.45rem,0.7vw,0.58rem);"><span class="v">$</span> cd src-lesson1
+<span class="v">$</span> docker compose up -d
+<span class="v">$</span> uv run python run_all.py \
+    --rows <span class="g">50000</span>
+<span class="c"># Watch the TPS numbers...</span></div>
+                </div>
+            </div>
+            <div class="col" style="flex:1;">
+                <div class="code-block" style="flex:unset;">
+                    <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">Step 2 &mdash; CockroachDB</span></div>
+                    <div class="code-body" style="font-size:clamp(0.45rem,0.7vw,0.58rem);"><span class="v">$</span> cd src-lesson2
+<span class="v">$</span> docker compose up -d
+<span class="v">$</span> uv run python run_all.py \
+    --rows <span class="g">50000</span>
+<span class="c"># Same workload. Compare.</span></div>
+                </div>
+            </div>
         </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">3 nodes, 6 CPUs, 12 GB RAM. Same schema. Why is everything worse?</p>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.5rem,1vh,0.8rem);">Same schema. Same <code style="color:rgba(255,255,255,0.5);">asyncpg</code> driver. 3 nodes, 6 CPUs, 12 GB RAM vs. 1 node, 2 CPUs, 4 GB.</p>
     </div>
-    <span class="slide-num">02 / 28</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">02 / 26</span>
 </section>
 
-
-<!-- ─── SLIDE 3 · THE QUESTION ───────────────────── -->
+<!-- ─── SLIDE 3 · REVEAL: HEAD-TO-HEAD ───────────── -->
 <section class="slide" id="slide-2">
+    <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
+        <div class="section-marker reveal" style="color:var(--terracotta);border-color:var(--terracotta);">Results</div>
+        <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Distribution makes everything <em>slower</em></h2>
+        <table class="latency-table reveal" style="max-width:700px;margin-top:clamp(0.3rem,0.6vh,0.5rem);">
+            <thead><tr><th>Scenario</th><th style="text-align:right;">Postgres</th><th style="text-align:right;">CockroachDB</th><th style="text-align:right;">Ratio</th></tr></thead>
+            <tbody>
+                <tr><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">1,778 TPS</td><td style="font-family:var(--font-mono);text-align:right;">560 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">3.2&times;</td></tr>
+                <tr><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">11,657 TPS</td><td style="font-family:var(--font-mono);text-align:right;">2,829 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">4.1&times;</td></tr>
+                <tr><td>COPY (4 parallel)</td><td style="font-family:var(--font-mono);text-align:right;">226,726 TPS</td><td style="font-family:var(--font-mono);text-align:right;">18,556 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">12&times;</td></tr>
+                <tr class="row-hot"><td>Hot row (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">2,584 TPS</td><td style="font-family:var(--font-mono);text-align:right;">555 TPS</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">4.7&times;</td></tr>
+            </tbody>
+        </table>
+        <div class="callout callout-friction reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);">
+            <span class="callout-icon">&#9888;</span>
+            <span class="callout-text">Every scenario is slower. COPY is <strong>12&times; slower</strong> because every batch goes through Raft consensus. There is no <code>synchronous_commit=off</code> escape hatch.</span>
+        </div>
+    </div>
+    <span class="slide-num">03 / 26</span>
+</section>
+
+<!-- ─── SLIDE 4 · THE QUESTION ───────────────────── -->
+<section class="slide" id="slide-3">
     <div class="geo-accent geo-circle" style="bottom:15%;left:8%;opacity:0.5;"></div>
     <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;align-items:center;text-align:center;">
         <div class="reveal label" style="margin-bottom:clamp(1rem,3vh,2.5rem);">The real question</div>
         <div class="big-question reveal" style="text-align:center;">If distribution makes everything <em>slower</em>&hellip; why does anyone do it?</div>
         <p class="subtitle reveal" style="text-align:center;margin-top:clamp(0.8rem,1.5vh,1.2rem);max-width:600px;">This lesson answers that. But first: <strong>why</strong> is it slower? Every mechanism you study today exists to either reduce coordination rounds or tolerate the latency they introduce.</p>
     </div>
-    <span class="slide-num">03 / 28</span>
+    <span class="slide-num">04 / 26</span>
 </section>
 
-
-<!-- ─── SLIDE 4 · THE NETWORK CHANGES EVERYTHING ──── -->
-<section class="slide" id="slide-3">
+<!-- ─── SLIDE 5 · THE NETWORK CHANGES EVERYTHING ──── -->
+<section class="slide" id="slide-4">
     <div class="geo-accent geo-dot" style="top:18%;right:14%;"></div>
     <div class="geo-accent geo-vline" style="right:16%;top:20%;height:clamp(30px,6vh,60px);"></div>
     <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
@@ -507,74 +540,7 @@
             <span class="callout-text">In Lesson 1, the bottleneck was WAL fsync at ~10&ndash;50 &mu;s. Now add <strong>500 &mu;s minimum</strong> per coordination round. That&rsquo;s a 10&ndash;50&times; penalty from physics alone.</span>
         </div>
     </div>
-    <span class="slide-num">04 / 28</span>
-</section>
-
-
-<!-- ─── SLIDE 16 · SETUP ─────────────────────────── -->
-<section class="slide" id="slide-13" style="background:var(--charcoal);">
-    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,750px);margin:0 auto;">
-        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Setup</div>
-        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">3-node cluster in <em style="color:var(--sage);">60 seconds</em></h2>
-        <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:520px;flex:unset;">
-            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">shell</span></div>
-            <div class="code-body"><span class="v">$</span> cd src-lesson2
-<span class="v">$</span> docker compose up -d
-<span class="c"># 3 CockroachDB nodes + init container</span>
-<span class="c"># SQL: localhost:26257</span>
-<span class="c"># Admin UI: localhost:8080</span>
-
-<span class="v">$</span> uv sync  <span class="c"># install Python deps</span>
-<span class="v">$</span> uv run python run_all.py --rows <span class="g">50000</span></div>
-        </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.6rem,1.2vh,0.9rem);">CockroachDB speaks the Postgres wire protocol. <code style="color:rgba(255,255,255,0.6);">asyncpg</code> works with just a DSN change.</p>
-    </div>
-    <span class="slide-num">05 / 28</span>
-</section>
-
-
-<!-- ─── SLIDE 17 · DEMO: BENCHMARK RESULTS ─────── -->
-<section class="slide" id="slide-14" style="background:var(--charcoal);">
-    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,750px);margin:0 auto;">
-        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Live demo &middot; run_all.py</div>
-        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">CockroachDB <em style="color:var(--warm);">benchmarks</em></h2>
-        <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:680px;flex:unset;">
-            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">run_all.py &mdash; 10k rows</span></div>
-            <div class="code-body" style="font-size:clamp(0.5rem,0.8vw,0.65rem);"><span class="v">Scenario</span>                      TPS  vs Naive  <span class="c">p50ms  p95ms  p99ms</span>
-<span class="p">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>
-  Naive (1 conn)           <span class="g">560</span>     1.0&times;  <span class="c"> 1.54   2.68   5.04</span>
-  Async (10 conns)       <span class="g">1,626</span>     2.9&times;  <span class="c"> 4.87  13.05  25.91</span>
-  Async (50 conns)       <span class="g">2,829</span>     5.1&times;  <span class="c">16.21  30.26  38.88</span>
-  COPY (batch=1000)     <span class="g">15,108</span>    27.0&times;  <span class="c"> 0.06   0.08   0.09</span>
-  COPY (4 parallel)     <span class="g">18,556</span>    33.1&times;  <span class="c"> 0.21   0.24   0.26</span>
-  Hot row (50 conns)       <span class="g">555</span>     1.0&times;  <span class="c">77.39 127.28 285.71</span></div>
-        </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.5rem,1vh,0.8rem);">Every commit goes through Raft consensus. No <code style="color:rgba(255,255,255,0.5);">synchronous_commit=off</code> option.</p>
-    </div>
-    <span class="slide-num">06 / 28</span>
-</section>
-
-
-<!-- ─── SLIDE 18 · HEAD-TO-HEAD LATENCY ──────────── -->
-<section class="slide" id="slide-15">
-    <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
-        <div class="section-marker reveal" style="color:var(--warm);border-color:var(--warm);">Head-to-head</div>
-        <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Where the <em>latency</em> goes</h2>
-        <table class="latency-table reveal" style="max-width:650px;">
-            <thead><tr><th>Scenario</th><th style="text-align:right;">PG p99</th><th style="text-align:right;">CRDB p99</th><th style="text-align:right;">Gap</th></tr></thead>
-            <tbody>
-                <tr><td>Naive (1 conn)</td><td style="font-family:var(--font-mono);text-align:right;">1.0 ms</td><td style="font-family:var(--font-mono);text-align:right;">5.0 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">5&times;</td></tr>
-                <tr><td>Async (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">9.1 ms</td><td style="font-family:var(--font-mono);text-align:right;">38.9 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">4.3&times;</td></tr>
-                <tr><td>COPY (4 parallel)</td><td style="font-family:var(--font-mono);text-align:right;">0.03 ms</td><td style="font-family:var(--font-mono);text-align:right;">0.26 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);">8.7&times;</td></tr>
-                <tr class="row-hot"><td>Hot row (50 conns)</td><td style="font-family:var(--font-mono);text-align:right;">91 ms</td><td style="font-family:var(--font-mono);text-align:right;">286 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">3.1&times;</td></tr>
-            </tbody>
-        </table>
-        <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
-            <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">The gap is <strong>Raft consensus</strong> on every commit. Hot row p99 at 286ms: some transactions waited through multiple serializable retries.</span>
-        </div>
-    </div>
-    <span class="slide-num">07 / 28</span>
+    <span class="slide-num">05 / 26</span>
 </section>
 
 
@@ -610,7 +576,7 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">08 / 28</span>
+    <span class="slide-num">06 / 26</span>
 </section>
 
 
@@ -625,7 +591,7 @@
             <span class="callout-text" style="color:rgba(255,255,255,0.85);">Kleppmann&rsquo;s critique: CAP is about a very specific consistency (linearizability) and a very specific availability (every non-failing node responds). Real systems operate between these extremes.</span>
         </div>
     </div>
-    <span class="slide-num">09 / 28</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">07 / 26</span>
 </section>
 
 
@@ -645,7 +611,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">2 of 3 nodes alive = quorum. Writes continue. <strong style="color:var(--sage);">This is what you&rsquo;re buying.</strong></p>
     </div>
-    <span class="slide-num">10 / 28</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">08 / 26</span>
 </section>
 
 
@@ -679,7 +645,7 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">11 / 28</span>
+    <span class="slide-num">09 / 26</span>
 </section>
 
 
@@ -702,7 +668,7 @@
             <div class="formula">Every write = leader + <span class="accent">1 network round-trip</span> to a follower (minimum)</div>
         </div>
     </div>
-    <span class="slide-num">12 / 28</span>
+    <span class="slide-num">10 / 26</span>
 </section>
 
 
@@ -747,7 +713,7 @@
         </svg>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.75);margin-top:clamp(0.3rem,0.6vh,0.5rem);">Leader + 1 fast follower = committed. The slow follower catches up later.</p>
     </div>
-    <span class="slide-num">13 / 28</span>
+    <span class="slide-num">11 / 26</span>
 </section>
 
 
@@ -771,7 +737,7 @@
             <span class="callout-text">But: election takes <strong>seconds</strong>. During that window, writes to affected ranges stall. This is the latency spike you&rsquo;ll observe.</span>
         </div>
     </div>
-    <span class="slide-num">14 / 28</span>
+    <span class="slide-num">12 / 26</span>
 </section>
 
 
@@ -782,7 +748,7 @@
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">What about transactions that span <em style="color:var(--warm);">multiple nodes?</em></h2>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.8rem,1.5vh,1.2rem);">Transfer $100 from account A (node 1) to account B (node 2).<br>Both must succeed or neither. Enter: Two-Phase Commit.</p>
     </div>
-    <span class="slide-num">15 / 28</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">13 / 26</span>
 </section>
 
 
@@ -826,7 +792,7 @@
         </svg>
         <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.5rem);">Two network round-trips on the critical path. Each one is ~500 &mu;s in the same datacenter.</p>
     </div>
-    <span class="slide-num">16 / 28</span>
+    <span class="slide-num">14 / 26</span>
 </section>
 
 
@@ -854,7 +820,7 @@
             <span class="callout-text">Modern distributed SQL hasn&rsquo;t eliminated 2PC. It&rsquo;s made the failure window <strong>vanishingly small</strong> and recoverable.</span>
         </div>
     </div>
-    <span class="slide-num">17 / 28</span>
+    <span class="slide-num">15 / 26</span>
 </section>
 
 
@@ -876,7 +842,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Force a range split, then compare local vs. cross-range transaction latency.</p>
     </div>
-    <span class="slide-num">18 / 28</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">16 / 26</span>
 </section>
 
 
@@ -899,7 +865,7 @@
             <span class="callout-text">Cross-range + contention = 2PC overhead + serializable retries. The p99 blows up because some transactions retry <strong>multiple times</strong>.</span>
         </div>
     </div>
-    <span class="slide-num">19 / 28</span>
+    <span class="slide-num">17 / 26</span>
 </section>
 
 
@@ -929,7 +895,7 @@
         <span class="k">continue</span>  <span class="c"># retry</span></div>
         </div>
     </div>
-    <span class="slide-num">20 / 28</span>
+    <span class="slide-num">18 / 26</span>
 </section>
 
 
@@ -953,7 +919,7 @@
             <span class="callout-text">CockroachDB <code>--max-offset</code> = 500ms. If clocks drift beyond that, the node <strong>self-terminates</strong>. NTP misconfiguration has taken down production clusters.</span>
         </div>
     </div>
-    <span class="slide-num">21 / 28</span>
+    <span class="slide-num">19 / 26</span>
 </section>
 
 
@@ -976,7 +942,7 @@
         </div>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">US-East to EU-West = ~100ms. At that cost, max TPS per Raft group &asymp; <strong style="color:var(--gold);">3&ndash;7 commits/sec</strong>.</p>
     </div>
-    <span class="slide-num">22 / 28</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">20 / 26</span>
 </section>
 
 
@@ -999,7 +965,7 @@
 └──────────┘    └──────────┘    └──────────┘
   * = leaseholder    (leases spread across nodes)</div>
     </div>
-    <span class="slide-num">23 / 28</span>
+    <span class="slide-num">21 / 26</span>
 </section>
 
 
@@ -1033,7 +999,7 @@
             <span class="callout-text">All queries are in <code>instrument.sql</code>. Keep the Admin UI open during every demo.</span>
         </div>
     </div>
-    <span class="slide-num">24 / 28</span>
+    <span class="slide-num">22 / 26</span>
 </section>
 
 
@@ -1058,7 +1024,7 @@
             <span class="callout-text">Fill this in with <strong>your own data</strong>. These numbers will vary by machine, row count, and workload.</span>
         </div>
     </div>
-    <span class="slide-num">25 / 28</span>
+    <span class="slide-num">23 / 26</span>
 </section>
 
 
@@ -1083,7 +1049,7 @@
             <span class="callout-text">Lesson 1 showed the ceiling. Lesson 2 showed the cost of the alternative. That tension drives the rest of the course.</span>
         </div>
     </div>
-    <span class="slide-num">26 / 28</span>
+    <span class="slide-num">24 / 26</span>
 </section>
 
 
@@ -1097,7 +1063,7 @@
         <div class="hr-editorial reveal" style="margin-top:clamp(1.5rem,3vh,2.5rem);width:min(300px,60vw);"><span>lesson 3</span></div>
         <p class="subtitle reveal" style="text-align:center;max-width:500px;margin-top:clamp(0.5rem,1vh,0.8rem);">Change Data Capture. Kafka. The streaming bridge between OLTP and the rest of your architecture.</p>
     </div>
-    <span class="slide-num">27 / 28</span>
+    <span class="slide-num">25 / 26</span>
 </section>
 
 
@@ -1117,7 +1083,7 @@
             <span class="callout-text">Reference <strong>your own benchmark data</strong>. Not generic blog post wisdom.</span>
         </div>
     </div>
-    <span class="slide-num">28 / 28</span>
+    <span class="slide-num">26 / 26</span>
 </section>
 
 
