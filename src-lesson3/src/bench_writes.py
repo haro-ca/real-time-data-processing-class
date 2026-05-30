@@ -139,7 +139,7 @@ async def main():
     print("  Lesson 3 — Write Benchmark: Postgres vs CockroachDB")
     print("="*W)
 
-    print("\n  [Postgres 4CPU/8GB]")
+    print("\n  [Postgres 2CPU/4GB]")
     await pg_setup()
     pg_ins  = await bench_inserts(PG_DSN, CONNS, INSERT_ROWS)
     pg_copy = await bench_copy(PG_DSN, COPY_ROWS, BATCH)
