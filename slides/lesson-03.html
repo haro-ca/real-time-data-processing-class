@@ -552,28 +552,48 @@
 <!-- ─── SLIDE 5 · DEMO: SHARDING ON A LAPTOP ──── -->
 <section class="slide" id="slide-shard-demo" style="background:var(--charcoal);">
     <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,820px);margin:0 auto;">
-        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Live demo &middot; sharding mechanism</div>
+        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Live demo &middot; what removing Raft actually buys</div>
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">Sharding on a <em style="color:var(--terracotta);">laptop</em></h2>
-        <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:560px;flex:unset;">
-            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">CockroachDB &mdash; 3 nodes, disjoint ranges</span></div>
-            <div class="code-body"><span class="c"># Split table into 8 ranges, COPY across all</span>
+        <div class="code-block reveal" style="margin-top:clamp(0.6rem,1.2vh,1rem);max-width:600px;flex:unset;">
+            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">CockroachDB &mdash; 3 nodes, two experiments</span></div>
+            <div class="code-body"><span class="c"># Experiment 1 &mdash; RF=3 (Raft on), 8 shards</span>
 <span class="v">$</span> ./bench python src/experiment_sharded_copy.py \
     --ranges <span class="g">8</span> --conns <span class="g">8</span> --rows <span class="g">100000</span>
 
-<span class="c"># Each connection writes to a different range</span>
-<span class="c"># No cross-range contention</span></div>
+<span class="c"># Experiment 2 &mdash; RF=1 (Raft off), 10 shards</span>
+<span class="v">$</span> cockroach sql -e <span class="s">"ALTER DATABASE bench CONFIGURE ZONE USING num_replicas=1"</span>
+<span class="v">$</span> ./bench python src/experiment_sharded_copy.py \
+    --ranges <span class="g">10</span> --conns <span class="g">10</span> --rows <span class="g">1000000</span> --batch-size <span class="g">5000</span></div>
         </div>
-        <div class="two-col reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem);flex:unset;gap:clamp(0.5rem,1.5vw,1rem);">
-            <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--text-muted);">Single Postgres COPY (this lesson&rsquo;s loader)</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:rgba(255,255,255,0.6);font-weight:700;">~550k rows/sec</p>
-            </div>
-            <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--terracotta);">CRDB 3-node on one laptop</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--terracotta);font-weight:700;">~50k TPS</p>
-            </div>
+        <table class="latency-table reveal" style="max-width:700px;margin-top:clamp(0.6rem,1.2vh,0.9rem);color:rgba(255,255,255,0.8);">
+            <thead><tr style="color:rgba(255,255,255,0.4);">
+                <th>Config</th><th style="text-align:right;">TPS</th><th style="text-align:right;">vs&nbsp;Postgres</th><th style="text-align:right;">Node&nbsp;dies?</th>
+            </tr></thead>
+            <tbody>
+                <tr style="border-color:rgba(255,255,255,0.08);">
+                    <td>Single Postgres COPY</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--sage);font-weight:700;">~550k</td>
+                    <td style="font-family:var(--font-mono);text-align:right;">baseline</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">total&nbsp;outage</td>
+                </tr>
+                <tr style="border-color:rgba(255,255,255,0.08);">
+                    <td>CRDB RF=3 &middot; 8 shards (Raft on)</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">~50k</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">11&times;&nbsp;slower</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">survives&nbsp;(quorum)</td>
+                </tr>
+                <tr style="border-color:rgba(255,255,255,0.08);">
+                    <td>CRDB RF=1 &middot; 10 shards (Raft off)</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:rgba(255,255,255,0.65);">~66k</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">8&times;&nbsp;slower</td>
+                    <td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">shard&nbsp;offline</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="callout callout-friction reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);background:rgba(196,85,61,0.12);border-color:var(--terracotta);">
+            <span class="callout-icon">&#9888;</span>
+            <span class="callout-text" style="color:rgba(255,255,255,0.75);">Removing Raft bought <strong style="color:var(--warm);">+30%</strong> &mdash; the disk was the bottleneck, not consensus. And you traded <strong style="color:var(--terracotta);">availability</strong>, not consistency: RF=1 is still linearizable (one copy is always current), but one dead node silences that shard entirely. This is exactly why Vitess and production sharding tools demand physically separate machines per shard.</span>
         </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Locally, sharding <strong style="color:var(--terracotta);">loses</strong> &mdash; 3 nodes share one disk and one CPU. The demo shows the <em>mechanism</em>: disjoint keys = no coordination. On <strong style="color:var(--sage);">separate hardware</strong>, this scales near-linearly with shard count.</p>
     </div>
     <span class="slide-num" style="color:rgba(255,255,255,0.3);">05 / 33</span>
 </section>
