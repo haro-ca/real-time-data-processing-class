@@ -15,15 +15,15 @@ services:
     command:
       - postgres
       - -c
-      - shared_buffers=1GB
+      - shared_buffers=2GB
       - -c
       - max_connections=200
       - -c
-      - work_mem=128MB
+      - work_mem=256MB
       - -c
-      - effective_cache_size=3GB
+      - effective_cache_size=6GB
       - -c
-      - maintenance_work_mem=256MB
+      - maintenance_work_mem=512MB
       - -c
       - synchronous_commit=on
       - -c
@@ -31,8 +31,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2"
-          memory: 4g
+          cpus: "4"
+          memory: 8g
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
       interval: 3s
@@ -41,7 +41,7 @@ services:
 
   # ── DuckDB benchmark runner ──
   # Containerized so it competes with Postgres under identical resource caps
-  # (2 CPU / 4 GB). Students can also run scripts natively on the host with
+  # (4 CPU / 8 GB). Students can also run scripts natively on the host with
   # `uv run python <script>` — see slide notes. The reveal at the end of the
   # lesson is: lift the cage, and DuckDB gets even faster.
   duckdb:
