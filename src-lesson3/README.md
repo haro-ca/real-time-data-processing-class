@@ -28,20 +28,19 @@ uv run python benchmark_queries.py
 | `download_data.sh` | Fetch 2023 NYC Yellow Taxi Parquet files |
 | `load_postgres.py` | Load Parquet → Postgres via DuckDB CSV export + COPY |
 | `benchmark_queries.py` | 4 queries head-to-head (PG vs DuckDB), wall-clock times |
-| `experiment_sharded_copy.py` | Sharded parallel COPY on CockroachDB (needs L2 cluster) |
+| `experiment_sharded_copy.py` | Sharded parallel COPY on CockroachDB |
 | `experiment_point_query.py` | Point lookup comparison (PG wins) |
 | `experiment_ordering.py` | Sorted vs shuffled data — zone map effectiveness |
 
-## Sharding demo (requires L2 cluster)
+## Sharding demo
 
-The sharding experiment runs against the CockroachDB cluster from Lesson 2:
+The sharding experiment runs against the CockroachDB cluster included in this lesson's docker-compose:
 
 ```bash
-# Start L2 cluster if not running
-cd ../src-lesson2 && docker compose up -d
+# Start both Postgres and CockroachDB
+docker compose up -d
 
 # Run sharded COPY
-cd ../src-lesson3
 uv run python experiment_sharded_copy.py --ranges 8 --conns 8 --rows 100000
 ```
 
