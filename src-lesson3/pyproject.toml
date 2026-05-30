@@ -2,7 +2,7 @@
 name = "lesson3-olap-bench"
 version = "0.1.0"
 description = "Lesson 3: OLAP vs OLTP — DuckDB vs Postgres on 100M rows"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "asyncpg>=0.30.0",
     "duckdb>=1.1.0",

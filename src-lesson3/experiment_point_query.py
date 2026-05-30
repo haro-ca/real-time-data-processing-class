@@ -8,6 +8,7 @@ Usage:
 """
 
 import argparse
+import os
 import time
 from pathlib import Path
 
@@ -15,11 +16,15 @@ import duckdb
 import psycopg
 
 DATA_DIR = Path(__file__).parent / "data"
-PG_DSN = "postgresql://bench:bench@localhost:5432/bench"
-PARQUET_GLOB = str(DATA_DIR / "yellow_tripdata_2023-*.parquet")
+PG_HOST = os.environ.get("PG_HOST", "localhost")
+PG_PORT = os.environ.get("PG_PORT", "5432")
+PG_DSN = f"postgresql://bench:bench@{PG_HOST}:{PG_PORT}/bench"
+PARQUET_GLOB = str(DATA_DIR / "yellow_tripdata_*.parquet")
 
-# A specific timestamp known to exist in the dataset
-LOOKUP_VALUE = "2023-07-15 14:30:00"
+# A timestamp inside the workshop-default Q1 2025 window. Whether the row exists
+# is irrelevant for the benchmark — both engines pay the lookup cost either way
+# (B-tree probe for Postgres, full segment scan for DuckDB).
+LOOKUP_VALUE = "2025-02-15 14:30:00"
 
 
 def bench_postgres(iterations: int) -> float:

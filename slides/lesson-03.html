@@ -419,9 +419,9 @@
     <div class="slide-content" style="max-width:min(90vw,900px);margin:0 auto;">
         <div class="reveal label" style="margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Lesson 3 &middot; Real-Time Data Processing</div>
         <h1 class="display-title reveal">Why is OLAP a<br>fundamentally<br><em>different</em> problem?</h1>
-        <p class="subtitle reveal" style="margin-top:clamp(0.5rem,1.2vh,1rem);">Row stores vs. column stores. DuckDB vs. Postgres. Same hardware, 67&times; faster.</p>
+        <p class="subtitle reveal" style="margin-top:clamp(0.5rem,1.2vh,1rem);">Row stores vs. column stores. DuckDB vs. Postgres. Same cage &mdash; orders of magnitude faster.</p>
     </div>
-    <span class="slide-num">01 / 38</span>
+    <span class="slide-num">01 / 33</span>
 </section>
 
 
@@ -441,7 +441,7 @@
             <span class="callout-text">But we only showed one pattern: <strong>replicate everything via consensus.</strong> What if you want more TPS, not just more availability?</span>
         </div>
     </div>
-    <span class="slide-num">02 / 38</span>
+    <span class="slide-num">02 / 33</span>
 </section>
 
 
@@ -513,7 +513,7 @@
             <text style="font-family:var(--font-body);font-size:8px;fill:var(--charcoal);font-weight:600;text-anchor:middle;" x="320" y="170">Each shard handles traffic independently &mdash; no coordination between shards</text>
         </svg>
     </div>
-    <span class="slide-num">03 / 38</span>
+    <span class="slide-num">03 / 33</span>
 </section>
 
 
@@ -545,19 +545,19 @@
             <span class="callout-text">Sharding solves write throughput. But now a business analyst asks: <em>&ldquo;What was total revenue last quarter?&rdquo;</em> &mdash; that query must fan out to <strong>every shard</strong>, scan every row, aggregate. There&rsquo;s a better tool for that question.</span>
         </div>
     </div>
-    <span class="slide-num">04 / 38</span>
+    <span class="slide-num">04 / 33</span>
 </section>
 
 
-<!-- ─── SLIDE 5 · DEMO: SHARDING BEATS SINGLE NODE ──── -->
+<!-- ─── SLIDE 5 · DEMO: SHARDING ON A LAPTOP ──── -->
 <section class="slide" id="slide-shard-demo" style="background:var(--charcoal);">
-    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,800px);margin:0 auto;">
-        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Live demo &middot; sharding payoff</div>
-        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">Can sharding <em style="color:var(--sage);">beat</em> single-node?</h2>
-        <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:540px;flex:unset;">
+    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,820px);margin:0 auto;">
+        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Live demo &middot; sharding mechanism</div>
+        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">Sharding on a <em style="color:var(--terracotta);">laptop</em></h2>
+        <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:560px;flex:unset;">
             <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">CockroachDB &mdash; 3 nodes, disjoint ranges</span></div>
             <div class="code-body"><span class="c"># Split table into 8 ranges, COPY across all</span>
-<span class="v">$</span> uv run python experiment_sharded_copy.py \
+<span class="v">$</span> ./bench python experiment_sharded_copy.py \
     --ranges <span class="g">8</span> --conns <span class="g">8</span> --rows <span class="g">100000</span>
 
 <span class="c"># Each connection writes to a different range</span>
@@ -565,17 +565,17 @@
         </div>
         <div class="two-col reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem);flex:unset;gap:clamp(0.5rem,1.5vw,1rem);">
             <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--text-muted);">L1 best (single PG, parallel COPY)</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:rgba(255,255,255,0.6);font-weight:700;">~242k TPS</p>
+                <span class="col-label" style="color:var(--text-muted);">Single Postgres COPY (this lesson&rsquo;s loader)</span>
+                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:rgba(255,255,255,0.6);font-weight:700;">~550k rows/sec</p>
             </div>
             <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--sage);">CRDB 3-node, 8 ranges, disjoint keys</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--sage);font-weight:700;">~400k+ TPS</p>
+                <span class="col-label" style="color:var(--terracotta);">CRDB 3-node on one laptop</span>
+                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--terracotta);font-weight:700;">~50k TPS</p>
             </div>
         </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">When each shard handles independent traffic, distribution <strong style="color:var(--sage);">finally wins</strong>. The L2 penalty was coordination, not distribution itself.</p>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Locally, sharding <strong style="color:var(--terracotta);">loses</strong> &mdash; 3 nodes share one disk and one CPU. The demo shows the <em>mechanism</em>: disjoint keys = no coordination. On <strong style="color:var(--sage);">separate hardware</strong>, this scales near-linearly with shard count.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">05 / 39</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">05 / 33</span>
 </section>
 
 
@@ -584,10 +584,10 @@
     <div class="geo-accent geo-circle" style="bottom:15%;left:8%;opacity:0.5;"></div>
     <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;align-items:center;text-align:center;">
         <div class="reveal label" style="margin-bottom:clamp(1rem,3vh,2.5rem);">The real question</div>
-        <div class="big-question reveal" style="text-align:center;">What if the workload isn&rsquo;t &ldquo;insert one row fast&rdquo;&hellip;<br>but <em>&ldquo;scan 100 million rows and answer a question?&rdquo;</em></div>
+        <div class="big-question reveal" style="text-align:center;">What if the workload isn&rsquo;t &ldquo;insert one row fast&rdquo;&hellip;<br>but <em>&ldquo;scan tens of millions of rows and answer a question?&rdquo;</em></div>
         <p class="subtitle reveal" style="text-align:center;margin-top:clamp(0.8rem,1.5vh,1.2rem);max-width:600px;">Same hardware. Completely different bottleneck profile. Let&rsquo;s feel the difference.</p>
     </div>
-    <span class="slide-num">05 / 38</span>
+    <span class="slide-num">06 / 33</span>
 </section>
 
 
@@ -595,7 +595,7 @@
 <section class="slide" id="slide-demo-gap" style="background:var(--charcoal);">
     <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,800px);margin:0 auto;">
         <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Live demo &middot; same query, different engine</div>
-        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">100M rows. One <em style="color:var(--warm);">question.</em></h2>
+        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">11M rows. One <em style="color:var(--warm);">question.</em></h2>
         <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:560px;flex:unset;">
             <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">SQL &mdash; identical in both engines</span></div>
             <div class="code-body"><span class="k">SELECT</span> <span class="fn">COUNT</span>(*), <span class="fn">AVG</span>(fare_amount),
@@ -604,17 +604,17 @@
         </div>
         <div class="two-col reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem);flex:unset;gap:clamp(0.5rem,1.5vw,1rem);">
             <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--terracotta);">Postgres (containerized, 4 CPU / 8 GB)</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1.2rem,2.5vw,1.8rem);color:var(--terracotta);font-weight:700;">~47 seconds</p>
+                <span class="col-label" style="color:var(--terracotta);">Postgres (4 CPU / 8 GB container)</span>
+                <p style="font-family:var(--font-mono);font-size:clamp(1.2rem,2.5vw,1.8rem);color:var(--terracotta);font-weight:700;">1.21 seconds</p>
             </div>
             <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--sage);">DuckDB (containerized, 4 CPU / 8 GB)</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1.2rem,2.5vw,1.8rem);color:var(--sage);font-weight:700;">~0.7 seconds</p>
+                <span class="col-label" style="color:var(--sage);">DuckDB (4 CPU / 8 GB container)</span>
+                <p style="font-family:var(--font-mono);font-size:clamp(1.2rem,2.5vw,1.8rem);color:var(--sage);font-weight:700;">0.096 seconds</p>
             </div>
         </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Same hardware. Same data. <strong style="color:var(--warm);">67&times; faster.</strong></p>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Same cage. <strong style="color:var(--warm);">13&times; faster.</strong> At 128M rows, the gap widens to <strong style="color:var(--sage);">100&times;+</strong>.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">06 / 38</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">07 / 33</span>
 </section>
 
 
@@ -623,10 +623,10 @@
     <div class="geo-accent geo-dot" style="top:20%;right:15%;"></div>
     <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;align-items:center;text-align:center;">
         <div class="reveal label" style="margin-bottom:clamp(1rem,3vh,2.5rem);">The architecture question</div>
-        <div class="big-question reveal" style="text-align:center;">Same CPU. Same RAM. Same disk.<br>How can anything be <em>67&times; faster?</em></div>
+        <div class="big-question reveal" style="text-align:center;">Same CPU. Same RAM. Same disk.<br>How can anything be <em>13&times; faster?</em></div>
         <p class="subtitle reveal" style="text-align:center;margin-top:clamp(0.8rem,1.5vh,1.2rem);max-width:600px;">It&rsquo;s not magic. It&rsquo;s a different physical layout for a different access pattern.</p>
     </div>
-    <span class="slide-num">07 / 38</span>
+    <span class="slide-num">08 / 33</span>
 </section>
 
 
@@ -639,7 +639,7 @@
     <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
         <div class="section-marker reveal" style="color:var(--warm);border-color:var(--warm);">Physical layout</div>
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Row store: <em>Postgres</em></h2>
-        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">Data is laid out as heap tuples. Each 8 KB page contains complete rows &mdash; all 17 columns packed together.</p>
+        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">Data is laid out as heap tuples. Each 8 KB page contains complete rows &mdash; all 20 columns packed together.</p>
         <svg class="reveal" viewBox="0 0 680 220" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:min(90vw,700px);height:auto;margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <style>
                 .pg-label { font-family: var(--font-mono); font-size: 9px; fill: var(--charcoal); font-weight: 700; }
@@ -706,10 +706,10 @@
             <rect class="pg-cell-needed" x="60" y="132" width="10" height="10" rx="2"/>
             <text class="pg-sublabel" x="74" y="141">needed (3 cols)</text>
             <rect class="pg-cell-wasted" x="155" y="132" width="10" height="10" rx="2"/>
-            <text class="pg-sublabel" x="169" y="141">read but wasted (14 cols)</text>
+            <text class="pg-sublabel" x="169" y="141">read but wasted (17 cols)</text>
 
             <!-- Waste annotation -->
-            <text class="pg-arrow-label" x="165" y="168" text-anchor="middle">Postgres reads the entire page &mdash; all 17 columns per row</text>
+            <text class="pg-arrow-label" x="165" y="168" text-anchor="middle">Postgres reads the entire page &mdash; all 20 columns per row</text>
             <line x1="30" y1="175" x2="300" y2="175" stroke="var(--terracotta)" stroke-width="1" stroke-dasharray="3 2"/>
 
             <!-- Page 2 -->
@@ -761,14 +761,14 @@
             <line x1="370" y1="175" x2="640" y2="175" stroke="var(--terracotta)" stroke-width="1" stroke-dasharray="3 2"/>
 
             <!-- Bottom summary -->
-            <text style="font-family:var(--font-body);font-size:9px;fill:var(--charcoal);font-weight:600;" x="340" y="205" text-anchor="middle">Query: SELECT AVG(fare), AVG(tip), AVG(distance) FROM trips &mdash; needs 3 of 17 columns</text>
+            <text style="font-family:var(--font-body);font-size:9px;fill:var(--charcoal);font-weight:600;" x="340" y="205" text-anchor="middle">Query: SELECT AVG(fare), AVG(tip), AVG(distance) FROM trips &mdash; needs 3 of 20 columns</text>
         </svg>
         <div class="callout callout-friction reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon">&#9888;</span>
-            <span class="callout-text">To compute <code>AVG(fare_amount)</code>, Postgres reads <strong>every page</strong> &mdash; all 17 columns &mdash; then extracts the one field it needs. 20 columns, need 3? You&rsquo;re reading <strong>7&times; more data than necessary.</strong></span>
+            <span class="callout-text">To compute <code>AVG(fare_amount)</code>, Postgres reads <strong>every page</strong> &mdash; all 20 columns &mdash; then extracts the one field it needs. Need 3 of 20? You&rsquo;re reading <strong>~7&times; more data than necessary.</strong></span>
         </div>
     </div>
-    <span class="slide-num">08 / 38</span>
+    <span class="slide-num">09 / 33</span>
 </section>
 
 
@@ -781,7 +781,7 @@
     <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
         <div class="section-marker reveal" style="color:var(--sage);border-color:var(--sage);">Physical layout</div>
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Column store: <em>DuckDB</em></h2>
-        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">Each column is stored contiguously. All 100M <code>fare_amount</code> values packed together, all <code>pickup_datetime</code> values together.</p>
+        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">Each column is stored contiguously. All 128M <code>fare_amount</code> values packed together, all <code>pickup_datetime</code> values together.</p>
         <svg class="reveal" viewBox="0 0 680 200" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:min(90vw,700px);height:auto;margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <style>
                 .col-seg-read { fill: var(--sage); rx: 2; }
@@ -864,14 +864,14 @@
 
             <!-- Summary -->
             <rect x="180" y="170" width="300" height="22" fill="var(--sage-dim)" rx="3" stroke="var(--sage)" stroke-width="0.8"/>
-            <text style="font-family:var(--font-body);font-size:9px;fill:var(--sage);font-weight:600;" x="330" y="185" text-anchor="middle">Read 3 columns. Skip 14. Disk I/O reduced ~6&times;.</text>
+            <text style="font-family:var(--font-body);font-size:9px;fill:var(--sage);font-weight:600;" x="330" y="185" text-anchor="middle">Read 3 columns. Skip 17. Disk I/O reduced ~7&times;.</text>
         </svg>
         <div class="callout callout-win reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon" style="font-family:var(--font-mono);font-size:var(--small-size);color:var(--sage);">&#10003;</span>
-            <span class="callout-text">Need 3 of 17 columns? Read <strong>only those 3</strong>. The other 14 are never loaded from disk. That&rsquo;s the I/O reduction right there.</span>
+            <span class="callout-text">Need 3 of 20 columns? Read <strong>only those 3</strong>. The other 17 are never loaded from disk. That&rsquo;s the I/O reduction right there.</span>
         </div>
     </div>
-    <span class="slide-num">09 / 38</span>
+    <span class="slide-num">10 / 33</span>
 </section>
 
 
@@ -901,10 +901,10 @@
         </div>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">The 3 columns we need might be 2 GB uncompressed &rarr; <strong>~300 MB on disk</strong> after columnar compression. Postgres reads ~20 GB for the same answer.</span>
+            <span class="callout-text">On our 11M-row workshop dataset: 3 columns out of 20 might be ~180 MB uncompressed &rarr; <strong>~30 MB on disk</strong> after columnar compression. Postgres reads ~1.5 GB for the same answer.</span>
         </div>
     </div>
-    <span class="slide-num">10 / 38</span>
+    <span class="slide-num">11 / 33</span>
 </section>
 
 
@@ -916,9 +916,11 @@
         <table class="latency-table reveal" style="max-width:700px;margin-top:clamp(0.5rem,1vh,0.8rem);">
             <thead><tr><th></th><th style="text-align:right;">Row store (Postgres)</th><th style="text-align:right;">Column store (DuckDB)</th></tr></thead>
             <tbody>
-                <tr><td>Data read from disk</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">~20 GB (all columns)</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">~300 MB (3 cols, compressed)</td></tr>
-                <tr><td>NVMe bandwidth (3 GB/s)</td><td style="font-family:var(--font-mono);text-align:right;">~6.7 seconds I/O</td><td style="font-family:var(--font-mono);text-align:right;">~0.1 seconds I/O</td></tr>
-                <tr class="row-hot"><td>Ratio</td><td colspan="2" style="font-family:var(--font-mono);text-align:right;color:var(--warm);font-weight:700;">67&times; &mdash; from layout and compression alone</td></tr>
+                <tr><td>Data read from disk (11M rows)</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);">~1.5 GB (all 20 cols)</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">~30 MB (3 cols, compressed)</td></tr>
+                <tr><td>NVMe bandwidth (3 GB/s)</td><td style="font-family:var(--font-mono);text-align:right;">~0.5 s I/O</td><td style="font-family:var(--font-mono);text-align:right;">~0.01 s I/O</td></tr>
+                <tr><td>+ execution overhead</td><td style="font-family:var(--font-mono);text-align:right;">~0.7 s (tuple-at-a-time)</td><td style="font-family:var(--font-mono);text-align:right;">~0.09 s (vectorized)</td></tr>
+                <tr class="row-hot"><td>Measured wall clock</td><td style="font-family:var(--font-mono);text-align:right;color:var(--terracotta);font-weight:700;">1.21 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);font-weight:700;">0.096 s</td></tr>
+                <tr class="row-hot"><td>Ratio</td><td colspan="2" style="font-family:var(--font-mono);text-align:right;color:var(--warm);font-weight:700;">13&times; at 11M &mdash; scales to 100&times;+ at 128M</td></tr>
             </tbody>
         </table>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);">
@@ -926,7 +928,7 @@
             <span class="callout-text">This is <strong>before</strong> any execution engine optimizations. The layout alone explains most of the gap. Now add vectorized execution on top&hellip;</span>
         </div>
     </div>
-    <span class="slide-num">11 / 38</span>
+    <span class="slide-num">12 / 33</span>
 </section>
 
 
@@ -945,7 +947,7 @@
                 <ul class="bullets">
                     <li>Each operator processes <strong>one row</strong></li>
                     <li>Passes it up to the next operator</li>
-                    <li>100M rows = 100M function calls</li>
+                    <li>11M rows = 11M function calls per operator</li>
                     <li>Branch prediction thrashes</li>
                     <li>CPU caches useless</li>
                 </ul>
@@ -965,7 +967,7 @@
             <div class="formula">Total speedup &asymp; <span class="accent">I/O reduction</span> (10&ndash;60&times;) &times; <span class="accent">CPU efficiency</span> (5&ndash;10&times;) = 50&ndash;100&times;</div>
         </div>
     </div>
-    <span class="slide-num">12 / 38</span>
+    <span class="slide-num">13 / 33</span>
 </section>
 
 
@@ -1047,7 +1049,7 @@
             <span class="callout-text">Zone maps cost <strong>nothing at write time</strong> &mdash; just a few bytes of metadata. Compare to Postgres B-tree indexes, which must be maintained on every INSERT. Column stores optimize reads at zero write cost.</span>
         </div>
     </div>
-    <span class="slide-num">13 / 38</span>
+    <span class="slide-num">14 / 33</span>
 </section>
 
 
@@ -1070,7 +1072,7 @@
             <span class="callout-text"><strong>No single layout serves both.</strong> This tension drives the entire architecture of modern data systems &mdash; and it&rsquo;s why CDC (Lesson 5) and Kafka (Lesson 6) exist as bridges between the two worlds.</span>
         </div>
     </div>
-    <span class="slide-num">14 / 38</span>
+    <span class="slide-num">15 / 33</span>
 </section>
 
 
@@ -1079,9 +1081,9 @@
     <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,750px);margin:0 auto;">
         <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">Theory done</div>
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">Let&rsquo;s <em style="color:var(--warm);">measure</em> it.</h2>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.8rem,1.5vh,1.2rem);">DuckDB vs. Postgres. 100M NYC taxi rows. Same container constraints.<br>You drive. AI assists.</p>
+        <p class="subtitle reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem);color:rgba(255,255,255,0.45);">DuckDB vs. Postgres. 11M NYC taxi rows. Both engines caged at 4 CPU / 8 GB.<br>You drive. AI assists.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">15 / 38</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">16 / 33</span>
 </section>
 
 
@@ -1104,19 +1106,19 @@
             </div>
             <div class="col">
                 <div class="code-block" style="flex:unset;">
-                    <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">docker + DuckDB</span></div>
-                    <div class="code-body" style="font-size:clamp(0.45rem,0.7vw,0.58rem);"><span class="c"># Start Postgres (containerized)</span>
+                    <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">stack &mdash; both engines containerized</span></div>
+                    <div class="code-body" style="font-size:clamp(0.45rem,0.7vw,0.58rem);"><span class="c"># Postgres + CockroachDB + DuckDB,</span>
+<span class="c"># all capped at 4 CPU / 8 GB.</span>
 <span class="v">$</span> docker compose up -d
 
-<span class="c"># DuckDB comes via Python</span>
-<span class="v">$</span> uv sync
-<span class="v">$</span> uv run python -c <span class="s">"import duckdb; print('ok')"</span></div>
+<span class="c"># Run scripts inside the duckdb container:</span>
+<span class="v">$</span> ./bench python benchmark_queries.py</div>
                 </div>
             </div>
         </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">opencode helps you write queries, interpret plans, and explore.<br> <strong style="color:rgba(255,255,255,0.8);">You</strong> judge whether its answers are correct.</p>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">DuckDB lives in a container today <strong style="color:rgba(255,255,255,0.8);">only</strong> so the head-to-head is fair. Normally it&rsquo;s a Python library. We&rsquo;ll lift the cage at the end &mdash; expect another speedup.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">16 / 38</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">17 / 33</span>
 </section>
 
 
@@ -1137,10 +1139,10 @@
         </div>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">Touches 3 columns out of 17. Postgres reads everything; DuckDB reads only what it needs. Expected difference: <strong>20&ndash;50&times;</strong>.</span>
+            <span class="callout-text">Touches 3 columns out of 20. Postgres reads everything; DuckDB reads only what it needs. Measured on 11M rows: <strong>13&times;</strong> (PG 1.21s, DuckDB 0.096s). Stretches to <strong>100&times;+</strong> at 128M.</span>
         </div>
     </div>
-    <span class="slide-num">17 / 38</span>
+    <span class="slide-num">18 / 33</span>
 </section>
 
 
@@ -1157,17 +1159,17 @@
        <span class="fn">AVG</span>(fare_amount) <span class="k">AS</span> avg_fare,
        <span class="fn">SUM</span>(tip_amount) <span class="k">AS</span> total_tips
 <span class="k">FROM</span> trips
-<span class="k">WHERE</span> pickup_datetime >= <span class="s">'2023-06-01'</span>
-  <span class="k">AND</span> pickup_datetime &lt; <span class="s">'2023-09-01'</span>
+<span class="k">WHERE</span> pickup_datetime >= <span class="s">'2025-02-01'</span>
+  <span class="k">AND</span> pickup_datetime &lt; <span class="s">'2025-03-01'</span>
 <span class="k">GROUP BY</span> month, payment_type
 <span class="k">ORDER BY</span> month, payment_type;</div>
         </div>
         <div class="callout callout-win reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon" style="font-family:var(--font-mono);font-size:var(--small-size);color:var(--sage);">&#10003;</span>
-            <span class="callout-text">Data is roughly time-ordered in the Parquet files. DuckDB&rsquo;s zone maps skip row groups outside the date range. Postgres does a <strong>full sequential scan</strong> &mdash; no zone maps exist in a heap.</span>
+            <span class="callout-text">Data is roughly time-ordered in the Parquet files. DuckDB&rsquo;s zone maps skip row groups outside the date range. Postgres does a <strong>full sequential scan</strong> &mdash; no zone maps exist in a heap. Measured: <strong>23&times;</strong> (PG 1.91s, DuckDB 0.085s).</span>
         </div>
     </div>
-    <span class="slide-num">18 / 38</span>
+    <span class="slide-num">19 / 33</span>
 </section>
 
 
@@ -1188,10 +1190,10 @@
         </div>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">~260 &times; 260 = ~67k groups. Both engines handle this, but DuckDB&rsquo;s vectorized hash aggregation processes batches through the hash table instead of one row at a time.</span>
+            <span class="callout-text">~260 &times; 260 = ~67k groups. Both engines handle this, but DuckDB&rsquo;s vectorized hash aggregation processes batches through the hash table instead of one row at a time. Measured: <strong>15&times;</strong> (PG 1.03s, DuckDB 0.068s).</span>
         </div>
     </div>
-    <span class="slide-num">19 / 38</span>
+    <span class="slide-num">20 / 33</span>
 </section>
 
 
@@ -1214,10 +1216,10 @@
         </div>
         <div class="callout callout-insight reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
-            <span class="callout-text">Sorting, partitioning, rolling aggregates &mdash; CPU-intensive. This shows the vectorized execution advantage on <strong>pure compute</strong>, not just I/O.</span>
+            <span class="callout-text">Sorting, partitioning, rolling aggregates &mdash; CPU-intensive. This shows the vectorized execution advantage on <strong>pure compute</strong>, not just I/O. Measured: <strong>4&times;</strong> (PG 0.63s, DuckDB 0.175s). The smallest gap of the four queries &mdash; columnar can&rsquo;t escape the inherent CPU cost of a 100-row rolling window.</span>
         </div>
     </div>
-    <span class="slide-num">20 / 38</span>
+    <span class="slide-num">21 / 33</span>
 </section>
 
 
@@ -1256,7 +1258,7 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">21 / 38</span>
+    <span class="slide-num">22 / 33</span>
 </section>
 
 
@@ -1272,7 +1274,7 @@
             </div>
             <div class="col">
                 <span class="col-label" style="color:var(--sage);">Acceptable</span>
-                <p class="subtitle" style="margin-top:0.3rem;font-style:italic;">&ldquo;DuckDB read 280 MB vs Postgres&rsquo;s 18 GB because it only scanned 2 of 17 columns, skipped 8 of 12 row groups via zone maps on pickup_datetime, and the remaining columns were dictionary-compressed with a 4&times; ratio.&rdquo;</p>
+                <p class="subtitle" style="margin-top:0.3rem;font-style:italic;">&ldquo;DuckDB read 30 MB vs Postgres&rsquo;s 1.5 GB because it only scanned 3 of 20 columns, skipped 2 of 3 row groups via zone maps on pickup_datetime, and the remaining columns were dictionary-compressed with a 4&times; ratio.&rdquo;</p>
             </div>
         </div>
         <div class="prompt-block reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);">
@@ -1284,7 +1286,7 @@
             <span class="callout-text">The AI will give you an answer. <strong>Verify it against the actual plan output.</strong> If the numbers don&rsquo;t match, the AI is wrong and you need to correct it.</span>
         </div>
     </div>
-    <span class="slide-num">22 / 38</span>
+    <span class="slide-num">23 / 33</span>
 </section>
 
 
@@ -1295,7 +1297,7 @@
         <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">Where do column stores <em style="color:var(--terracotta);">break?</em></h2>
         <p class="subtitle reveal" style="color:rgba(255,255,255,0.45);margin-top:clamp(0.8rem,1.5vh,1.2rem);">Every layout has a weakness. Let&rsquo;s find DuckDB&rsquo;s.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">23 / 38</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">24 / 33</span>
 </section>
 
 
@@ -1307,21 +1309,21 @@
         <div class="code-block reveal" style="margin-top:clamp(1rem,2vh,1.5rem);max-width:560px;flex:unset;">
             <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">SQL &mdash; same in both</span></div>
             <div class="code-body"><span class="k">SELECT</span> * <span class="k">FROM</span> trips
-<span class="k">WHERE</span> pickup_datetime = <span class="s">'2023-07-15 14:30:00'</span>;</div>
+<span class="k">WHERE</span> pickup_datetime = <span class="s">'2025-02-15 14:30:00'</span>;</div>
         </div>
         <div class="two-col reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem);flex:unset;gap:clamp(0.5rem,1.5vw,1rem);">
             <div class="col" style="align-items:center;">
                 <span class="col-label" style="color:var(--sage);">Postgres (with B-tree index)</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--sage);font-weight:700;">&lt; 1 ms</p>
+                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--sage);font-weight:700;">0.01 ms</p>
             </div>
             <div class="col" style="align-items:center;">
-                <span class="col-label" style="color:var(--terracotta);">DuckDB (no index)</span>
-                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--terracotta);font-weight:700;">~200 ms</p>
+                <span class="col-label" style="color:var(--terracotta);">DuckDB (scans parquet)</span>
+                <p style="font-family:var(--font-mono);font-size:clamp(1rem,2vw,1.4rem);color:var(--terracotta);font-weight:700;">9.8 ms</p>
             </div>
         </div>
-        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Column stores are <strong style="color:var(--terracotta);">not</strong> a replacement for row stores. They serve different access patterns.</p>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.5);margin-top:clamp(0.6rem,1.2vh,0.9rem);">Postgres wins by <strong style="color:var(--sage);">685&times;</strong>. Column stores are <strong style="color:var(--terracotta);">not</strong> a replacement for row stores &mdash; they serve different access patterns.</p>
     </div>
-    <span class="slide-num" style="color:rgba(255,255,255,0.3);">24 / 38</span>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">25 / 33</span>
 </section>
 
 
@@ -1348,7 +1350,7 @@
             <span class="callout-text">Expect: <code>payment_type</code> &rarr; dictionary (4 values). <code>pickup_datetime</code> &rarr; delta or bitpacked. <code>fare_amount</code> &rarr; constant/dictionary for common values. The ratio illustrates compression from columnar layout alone.</span>
         </div>
     </div>
-    <span class="slide-num">25 / 38</span>
+    <span class="slide-num">26 / 33</span>
 </section>
 
 
@@ -1357,27 +1359,22 @@
     <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
         <div class="section-marker reveal" style="color:var(--sage);border-color:var(--sage);">Experiment C &middot; data ordering</div>
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Sort order makes zone maps <em>click</em></h2>
-        <div class="code-block reveal" style="flex:unset;margin-top:clamp(0.4rem,0.8vh,0.6rem);max-width:560px;">
-            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">SQL &mdash; DuckDB</span></div>
-            <div class="code-body"><span class="c">-- Sorted by time (zone maps effective)</span>
-<span class="k">CREATE TABLE</span> trips_by_time <span class="k">AS</span>
-  <span class="k">SELECT</span> * <span class="k">FROM</span> trips <span class="k">ORDER BY</span> pickup_datetime;
-
-<span class="c">-- Shuffled randomly (zone maps useless)</span>
-<span class="k">CREATE TABLE</span> trips_shuffled <span class="k">AS</span>
-  <span class="k">SELECT</span> * <span class="k">FROM</span> trips <span class="k">ORDER BY</span> <span class="fn">RANDOM</span>();</div>
-        </div>
-        <ul class="bullets reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">
-            <li><strong>trips_by_time</strong>: date range maps to contiguous row groups &rarr; most are skipped</li>
-            <li><strong>trips_shuffled</strong>: every row group contains rows from every date &rarr; no skipping possible</li>
-            <li>Same query, same data, vastly different performance</li>
-        </ul>
+        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">Build two copies, run the same query across windows of increasing width.</p>
+        <table class="latency-table reveal" style="max-width:600px;margin-top:clamp(0.4rem,0.8vh,0.6rem);">
+            <thead><tr><th>Filter window</th><th style="text-align:right;">sorted</th><th style="text-align:right;">shuffled</th><th style="text-align:right;">ratio</th></tr></thead>
+            <tbody>
+                <tr><td>1 day</td><td style="font-family:var(--font-mono);text-align:right;">3.6 ms</td><td style="font-family:var(--font-mono);text-align:right;">8.7 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);font-weight:700;">2.4&times;</td></tr>
+                <tr><td>1 week</td><td style="font-family:var(--font-mono);text-align:right;">6.7 ms</td><td style="font-family:var(--font-mono);text-align:right;">11.3 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);font-weight:700;">1.7&times;</td></tr>
+                <tr><td>1 month</td><td style="font-family:var(--font-mono);text-align:right;">25.4 ms</td><td style="font-family:var(--font-mono);text-align:right;">26.0 ms</td><td style="font-family:var(--font-mono);text-align:right;">1.0&times;</td></tr>
+                <tr><td>3 months</td><td style="font-family:var(--font-mono);text-align:right;">60.7 ms</td><td style="font-family:var(--font-mono);text-align:right;">57.1 ms</td><td style="font-family:var(--font-mono);text-align:right;color:var(--text-muted);">0.9&times;</td></tr>
+            </tbody>
+        </table>
         <div class="callout callout-win reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon" style="font-family:var(--font-mono);font-size:var(--small-size);color:var(--sage);">&#10003;</span>
-            <span class="callout-text"><strong>Sort order alignment</strong> between data layout and common query filters is why real data warehouses partition by date. It&rsquo;s not just organizational &mdash; it enables segment elimination.</span>
+            <span class="callout-text">Zone maps are a <strong>selectivity amplifier</strong>, not a constant speedup. Tight filter on a sorted column &rarr; entire row groups skipped. Broad filter &rarr; everything has to be read anyway. <strong>Sort by what you filter on</strong> is the lesson.</span>
         </div>
     </div>
-    <span class="slide-num">26 / 38</span>
+    <span class="slide-num">27 / 33</span>
 </section>
 
 
@@ -1397,7 +1394,7 @@
             <span class="callout-text">&ldquo;Postgres is slow at analytics&rdquo; is imprecise. <strong>Postgres&rsquo;s row-oriented heap storage</strong> is slow at analytics. The query execution model is separate from the storage model, and both matter.</span>
         </div>
     </div>
-    <span class="slide-num">27 / 38</span>
+    <span class="slide-num">28 / 33</span>
 </section>
 
 
@@ -1428,7 +1425,7 @@
             </div>
         </div>
     </div>
-    <span class="slide-num">28 / 38</span>
+    <span class="slide-num">29 / 33</span>
 </section>
 
 
@@ -1452,11 +1449,36 @@
             <span class="callout-text"><strong>No single layout serves both OLTP and OLAP.</strong> The challenge is moving data between them efficiently. That&rsquo;s what the rest of this course solves.</span>
         </div>
     </div>
-    <span class="slide-num">29 / 38</span>
+    <span class="slide-num">30 / 33</span>
 </section>
 
 
-<!-- ─── SLIDE 30 · WHAT'S NEXT ─────────────────────── -->
+<!-- ─── SLIDE 30 · LIFT THE CAGE (REVEAL) ─────────── -->
+<section class="slide" id="slide-reveal" style="background:var(--charcoal);">
+    <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(90vw,820px);margin:0 auto;">
+        <div class="reveal label" style="color:rgba(255,255,255,0.4);margin-bottom:clamp(0.5rem,1.5vh,1.2rem);">One more thing&hellip;</div>
+        <h2 class="reveal" style="color:var(--cream);font-size:clamp(1.8rem,4.5vw,3.2rem);">Lift the <em style="color:var(--sage);">cage.</em></h2>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.55);margin-top:clamp(0.6rem,1.2vh,0.9rem);max-width:620px;">Everything you just saw &mdash; DuckDB caged at 4 CPU / 8 GB, same as Postgres. Take the cage off (run native on the host with all your cores and RAM):</p>
+        <div class="code-block reveal" style="margin-top:clamp(0.7rem,1.5vh,1rem);max-width:540px;flex:unset;">
+            <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">native DuckDB &mdash; no container</span></div>
+            <div class="code-body"><span class="v">$</span> uv run python benchmark_queries.py --duck-only</div>
+        </div>
+        <table class="latency-table reveal" style="max-width:600px;margin-top:clamp(0.6rem,1.2vh,1rem);color:rgba(255,255,255,0.8);">
+            <thead><tr style="color:rgba(255,255,255,0.5);"><th></th><th style="text-align:right;">caged</th><th style="text-align:right;">uncaged</th><th style="text-align:right;">vs PG</th></tr></thead>
+            <tbody>
+                <tr style="border-color:rgba(255,255,255,0.1);"><td>Q1 full aggregation</td><td style="font-family:var(--font-mono);text-align:right;">0.096 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">0.051 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);font-weight:700;">24&times;</td></tr>
+                <tr style="border-color:rgba(255,255,255,0.1);"><td>Q2 filtered aggregation</td><td style="font-family:var(--font-mono);text-align:right;">0.085 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">0.061 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);font-weight:700;">31&times;</td></tr>
+                <tr style="border-color:rgba(255,255,255,0.1);"><td>Q3 high-card GROUP BY</td><td style="font-family:var(--font-mono);text-align:right;">0.068 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">0.045 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);font-weight:700;">23&times;</td></tr>
+                <tr style="border-color:rgba(255,255,255,0.1);"><td>Q4 window function</td><td style="font-family:var(--font-mono);text-align:right;">0.175 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--sage);">0.146 s</td><td style="font-family:var(--font-mono);text-align:right;color:var(--warm);font-weight:700;">4&times;</td></tr>
+            </tbody>
+        </table>
+        <p class="subtitle reveal" style="color:rgba(255,255,255,0.55);margin-top:clamp(0.5rem,1vh,0.8rem);max-width:620px;">Uncaging buys another <strong style="color:var(--sage);">~2&times;</strong>. The dominant gap was already <em>architecture</em>, not resources. Postgres uncaged would still lose &mdash; tuple-at-a-time on full row pages can&rsquo;t out-run vectorized columnar scans.</p>
+    </div>
+    <span class="slide-num" style="color:rgba(255,255,255,0.3);">31 / 33</span>
+</section>
+
+
+<!-- ─── SLIDE 31 · WHAT'S NEXT ─────────────────────── -->
 <section class="slide" id="slide-next">
     <div class="geo-accent geo-dot" style="bottom:20%;left:12%;"></div>
     <div class="slide-content" style="max-width:min(90vw,800px);margin:0 auto;align-items:center;text-align:center;">
@@ -1465,7 +1487,7 @@
         <div class="hr-editorial reveal" style="margin-top:clamp(1.5rem,3vh,2.5rem);width:min(300px,60vw);"><span>lesson 4</span></div>
         <p class="subtitle reveal" style="text-align:center;max-width:500px;margin-top:clamp(0.5rem,1vh,0.8rem);">Change Data Capture. The streaming bridge between your OLTP source and your OLAP warehouse.</p>
     </div>
-    <span class="slide-num">30 / 38</span>
+    <span class="slide-num">32 / 33</span>
 </section>
 
 
@@ -1490,7 +1512,7 @@
             <span class="callout-text">You may use opencode to help write queries and interpret plans. But if the AI gives a number, <strong>verify it against the actual output.</strong></span>
         </div>
     </div>
-    <span class="slide-num">31 / 38</span>
+    <span class="slide-num">33 / 33</span>
 </section>
 
 
@@ -1501,38 +1523,39 @@
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Environment <em>setup</em></h2>
         <div class="code-block reveal" style="flex:unset;margin-top:clamp(0.5rem,1vh,0.8rem);">
             <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">shell</span></div>
-            <div class="code-body"><span class="c"># 1. Start Colima with resources</span>
-<span class="v">$</span> colima start --cpu <span class="g">4</span> --memory <span class="g">8</span> --disk <span class="g">30</span>
+            <div class="code-body"><span class="c"># 1. OrbStack or Docker Desktop running</span>
+<span class="v">$</span> open -a OrbStack    <span class="c"># or your runtime of choice</span>
 
-<span class="c"># 2. Start Postgres (containerized, resource-limited)</span>
+<span class="c"># 2. Clone + cd into the lesson</span>
 <span class="v">$</span> cd src-lesson3
+
+<span class="c"># 3. Download Q1 2025 (~10M rows)</span>
+<span class="v">$</span> ./download_data.sh
+
+<span class="c"># 4. Bring up Postgres + CRDB + DuckDB containers</span>
 <span class="v">$</span> docker compose up -d
 
-<span class="c"># 3. Download NYC Taxi data (Parquet)</span>
-<span class="v">$</span> mkdir -p data &amp;&amp; cd data
-<span class="v">$</span> wget https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-{01..12}.parquet
+<span class="c"># 5. Load Postgres (streams via DuckDB postgres extension)</span>
+<span class="v">$</span> ./bench python load_postgres.py
 
-<span class="c"># 4. Install Python deps (includes duckdb)</span>
-<span class="v">$</span> uv sync
-
-<span class="c"># 5. Install opencode</span>
-<span class="v">$</span> curl -fsSL https://opencode.ai/install | sh</div>
+<span class="c"># 6. Run the benchmark</span>
+<span class="v">$</span> ./bench python benchmark_queries.py</div>
         </div>
         <div class="two-col reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem);flex:unset;">
             <div class="col">
                 <span class="col-label" style="color:var(--dusty-blue);">Postgres container</span>
                 <ul class="bullets">
-                    <li>4 CPU, 8 GB RAM (same as DuckDB limits)</li>
-                    <li>Port: 5432</li>
-                    <li><code>shared_buffers = 2GB</code></li>
+                    <li>4 CPU, 8 GB RAM (cgroup cap)</li>
+                    <li>Port: 5432 (host) &mdash; <code>postgres:5432</code> on docker net</li>
+                    <li><code>shared_buffers = 2GB</code>, <code>work_mem = 256MB</code></li>
                 </ul>
             </div>
             <div class="col">
-                <span class="col-label" style="color:var(--sage);">DuckDB</span>
+                <span class="col-label" style="color:var(--sage);">DuckDB container</span>
                 <ul class="bullets">
-                    <li>Embedded (in-process via Python)</li>
+                    <li>Same cap: 4 CPU, 8 GB RAM</li>
                     <li>Reads Parquet directly &mdash; no loading step</li>
-                    <li>Containerized for fair benchmark</li>
+                    <li><code>./bench</code> wrapper = <code>docker compose exec duckdb</code></li>
                 </ul>
             </div>
         </div>
@@ -1547,11 +1570,11 @@
         <div class="section-marker reveal" style="color:var(--dusty-blue);border-color:var(--dusty-blue);">Annex</div>
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">NYC Taxi <em>dataset</em></h2>
         <ul class="bullets reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">
-            <li><strong>Source:</strong> NYC Taxi &amp; Limousine Commission</li>
-            <li><strong>Files:</strong> 12 monthly Parquet files (2023 Yellow Taxi)</li>
-            <li><strong>Rows:</strong> ~38M for 2023 alone; combine 2&ndash;3 years for ~100M</li>
-            <li><strong>Columns:</strong> 17 (vendor, pickup/dropoff time, passenger_count, distance, fare, tip, tolls, total, etc.)</li>
-            <li><strong>Why Parquet?</strong> Already columnar on disk. DuckDB reads with zero loading. Postgres requires COPY import (which itself is instructive: minutes to load what DuckDB reads instantly).</li>
+            <li><strong>Source:</strong> NYC Taxi &amp; Limousine Commission (cloudfront.net)</li>
+            <li><strong>Workshop default:</strong> Q1 2025 (3 monthly Parquet files) &rarr; <strong>~11M rows</strong></li>
+            <li><strong>Scale ladder:</strong> 10M (default) &middot; 100M (<code>./download_data.sh stretch</code>) &middot; 1B (<code>./download_data_1B.sh</code>, full 2009&ndash;2025 archive)</li>
+            <li><strong>Columns:</strong> 20 in the 2025 superset (schema drifts across years &mdash; loader uses DuckDB <code>union_by_name</code> to absorb it)</li>
+            <li><strong>Why Parquet?</strong> Already columnar on disk. DuckDB reads with zero loading. Postgres requires COPY import &mdash; itself instructive: ~20 s to load what DuckDB queries instantly.</li>
         </ul>
         <div class="code-block reveal" style="flex:unset;margin-top:clamp(0.4rem,0.8vh,0.6rem);max-width:560px;">
             <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">Postgres table DDL</span></div>
@@ -1598,7 +1621,7 @@
     <div class="slide-content" style="max-width:min(90vw,850px);margin:0 auto;">
         <div class="section-marker reveal" style="color:var(--dusty-blue);border-color:var(--dusty-blue);">Annex</div>
         <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Fair benchmark: <em>containerized DuckDB</em></h2>
-        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">For the head-to-head comparison, both engines run with identical resource constraints.</p>
+        <p class="subtitle reveal" style="margin-top:clamp(0.3rem,0.6vh,0.45rem);">Both engines run with identical cgroup caps. Same disk, same socket, same kernel.</p>
         <div class="code-block reveal" style="flex:unset;margin-top:clamp(0.4rem,0.8vh,0.6rem);max-width:600px;">
             <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">docker-compose.yml (excerpt)</span></div>
             <div class="code-body"><span class="v">services</span>:
@@ -1606,21 +1629,20 @@
     <span class="k">image</span>: postgres:16
     <span class="k">deploy</span>:
       <span class="k">resources</span>:
-        <span class="k">limits</span>:
-          <span class="k">cpus</span>: <span class="s">'4'</span>
-          <span class="k">memory</span>: <span class="s">8G</span>
+        <span class="k">limits</span>: { <span class="k">cpus</span>: <span class="s">'4'</span>, <span class="k">memory</span>: <span class="s">8g</span> }
 
   <span class="v">duckdb</span>:
-    <span class="k">image</span>: python:3.12-slim
+    <span class="k">build</span>: .              <span class="c"># python:3.13-slim + duckdb + psycopg + asyncpg</span>
+    <span class="k">volumes</span>: [ <span class="s">'./:/workspace'</span> ]
+    <span class="k">environment</span>: { <span class="k">PG_HOST</span>: postgres, <span class="k">CRDB_HOST</span>: crdb-1 }
     <span class="k">deploy</span>:
       <span class="k">resources</span>:
-        <span class="k">limits</span>:
-          <span class="k">cpus</span>: <span class="s">'4'</span>
-          <span class="k">memory</span>: <span class="s">8G</span></div>
+        <span class="k">limits</span>: { <span class="k">cpus</span>: <span class="s">'4'</span>, <span class="k">memory</span>: <span class="s">8g</span> }
+    <span class="k">command</span>: sleep infinity   <span class="c"># keep alive for `docker compose exec`</span></div>
         </div>
         <div class="callout callout-win reveal" style="margin-top:clamp(0.4rem,0.8vh,0.6rem);">
             <span class="callout-icon" style="font-family:var(--font-mono);font-size:var(--small-size);color:var(--sage);">&#10003;</span>
-            <span class="callout-text">After the fair benchmark, set DuckDB free (native, all cores/RAM). The 67&times; gap barely changes &mdash; proving it&rsquo;s architecture, not resources.</span>
+            <span class="callout-text">DuckDB is normally a Python library, not a container. We cage it here <em>only</em> to make the head-to-head clean. The &ldquo;lift the cage&rdquo; slide showed the uncaged numbers &mdash; ~2&times; faster, still column-store-fast either way.</span>
         </div>
     </div>
     <span class="slide-num">Annex</span>

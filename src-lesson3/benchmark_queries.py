@@ -1,13 +1,20 @@
 """Head-to-head benchmark: 4 queries run in both Postgres and DuckDB.
 
-Measures wall-clock time and reports the ratio. This is the core
-practical for Lesson 3 — students see the gap, then must explain it.
+Measures wall-clock time and reports the ratio. This is the core practical for
+Lesson 3 — students see the gap, then must explain it.
+
+The Postgres query is the source of truth. For DuckDB, the SQL is templated:
+the {table} placeholder becomes the parquet glob, and the parquet column names
+that differ from Postgres (tpep_pickup_datetime → pickup_datetime, PULocationID
+→ pickup_location_id, etc.) are aliased in a subquery so the rest of the SQL
+reads identically across engines.
 
 Usage:
-    python benchmark_queries.py [--pg-only | --duck-only]
+    uv run python benchmark_queries.py [--pg-only | --duck-only]
 """
 
 import argparse
+import os
 import time
 from pathlib import Path
 
@@ -15,15 +22,33 @@ import duckdb
 import psycopg
 
 DATA_DIR = Path(__file__).parent / "data"
-PG_DSN = "postgresql://bench:bench@localhost:5432/bench"
-PARQUET_GLOB = str(DATA_DIR / "yellow_tripdata_2023-*.parquet")
+PG_HOST = os.environ.get("PG_HOST", "localhost")
+PG_PORT = os.environ.get("PG_PORT", "5432")
+PG_DSN = f"postgresql://bench:bench@{PG_HOST}:{PG_PORT}/bench"
+PARQUET_GLOB = str(DATA_DIR / "yellow_tripdata_*.parquet")
+
+# DuckDB sees the Parquet files via a templated subquery that renames the raw
+# parquet columns to match the Postgres schema. The benchmark SQL then uses the
+# Postgres-style names in both engines — same query, different storage.
+DUCK_TABLE = f"""(
+    SELECT
+        tpep_pickup_datetime  AS pickup_datetime,
+        tpep_dropoff_datetime AS dropoff_datetime,
+        PULocationID          AS pickup_location_id,
+        DOLocationID          AS dropoff_location_id,
+        payment_type,
+        fare_amount,
+        tip_amount,
+        trip_distance
+    FROM read_parquet('{PARQUET_GLOB}', union_by_name=true)
+)"""
 
 QUERIES = [
     {
         "name": "Q1: Full aggregation (I/O bound)",
         "sql": """
             SELECT COUNT(*), AVG(fare_amount), AVG(tip_amount), AVG(trip_distance)
-            FROM trips
+            FROM {table}
         """,
     },
     {
@@ -34,9 +59,9 @@ QUERIES = [
                    COUNT(*) AS trips,
                    AVG(fare_amount) AS avg_fare,
                    SUM(tip_amount) AS total_tips
-            FROM trips
-            WHERE pickup_datetime >= '2023-06-01'
-              AND pickup_datetime < '2023-09-01'
+            FROM {table}
+            WHERE pickup_datetime >= '2025-02-01'
+              AND pickup_datetime < '2025-03-01'
             GROUP BY month, payment_type
             ORDER BY month, payment_type
         """,
@@ -47,7 +72,7 @@ QUERIES = [
             SELECT pickup_location_id, dropoff_location_id,
                    COUNT(*) AS trips,
                    AVG(fare_amount) AS avg_fare
-            FROM trips
+            FROM {table}
             GROUP BY pickup_location_id, dropoff_location_id
             ORDER BY trips DESC
             LIMIT 20
@@ -62,15 +87,12 @@ QUERIES = [
                        ORDER BY pickup_datetime
                        ROWS BETWEEN 100 PRECEDING AND CURRENT ROW
                    ) AS rolling_avg
-            FROM trips
+            FROM {table}
             WHERE pickup_location_id = 132
             ORDER BY pickup_datetime
         """,
     },
 ]
-
-# DuckDB reads from Parquet — replace 'trips' with the glob
-DUCK_TABLE = f"'{PARQUET_GLOB}'"
 
 
 def run_postgres(sql: str) -> float:
@@ -78,27 +100,16 @@ def run_postgres(sql: str) -> float:
     with psycopg.connect(PG_DSN) as conn:
         t0 = time.monotonic()
         with conn.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql.format(table="trips"))
             cur.fetchall()
         return time.monotonic() - t0
 
 
-def run_duckdb(sql: str) -> float:
+def run_duckdb(con: duckdb.DuckDBPyConnection, sql: str) -> float:
     """Run query in DuckDB, return wall-clock seconds."""
-    con = duckdb.connect()
-    # Replace 'trips' table reference with Parquet glob
-    duck_sql = sql.replace("trips", DUCK_TABLE)
-    # DuckDB uses tpep_pickup_datetime / tpep_dropoff_datetime in raw Parquet
-    duck_sql = duck_sql.replace("pickup_datetime", "tpep_pickup_datetime")
-    duck_sql = duck_sql.replace("dropoff_datetime", "tpep_dropoff_datetime")
-    duck_sql = duck_sql.replace("pickup_location_id", "PULocationID")
-    duck_sql = duck_sql.replace("dropoff_location_id", "DOLocationID")
-
     t0 = time.monotonic()
-    con.sql(duck_sql).fetchall()
-    elapsed = time.monotonic() - t0
-    con.close()
-    return elapsed
+    con.sql(sql.format(table=DUCK_TABLE)).fetchall()
+    return time.monotonic() - t0
 
 
 def main(pg_only: bool = False, duck_only: bool = False) -> None:
@@ -106,6 +117,13 @@ def main(pg_only: bool = False, duck_only: bool = False) -> None:
     print("  Lesson 3 — DuckDB vs Postgres: Head-to-Head Benchmark")
     print("=" * 70)
     print()
+
+    duck_con = duckdb.connect()
+    # No explicit memory_limit / threads: the comparison's fairness comes from
+    # running this script inside the duckdb container, which has the same
+    # cgroup cap as Postgres (4 CPU / 8 GB). When students run natively on
+    # host with `uv run python ...`, DuckDB uses 80% of host RAM — that's the
+    # "unconstrained reveal" at the end of the lesson.
 
     results = []
 
@@ -125,7 +143,7 @@ def main(pg_only: bool = False, duck_only: bool = False) -> None:
 
         if not pg_only:
             try:
-                duck_time = run_duckdb(q["sql"])
+                duck_time = run_duckdb(duck_con, q["sql"])
                 print(f"    DuckDB:    {duck_time:.3f}s")
             except Exception as e:
                 print(f"    DuckDB:    ERROR — {e}")
@@ -136,6 +154,8 @@ def main(pg_only: bool = False, duck_only: bool = False) -> None:
 
         results.append({"name": q["name"], "pg": pg_time, "duck": duck_time})
         print()
+
+    duck_con.close()
 
     # Summary table
     print("=" * 70)

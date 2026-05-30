@@ -28,6 +28,13 @@ build/
 # Docker
 docker-compose.override.yml
 
+# Lesson 3 — large/transient artifacts (downloaded parquet, intermediate CSV,
+# DuckDB databases created by experiments)
+src-lesson3/data/
+*.duckdb
+*.duckdb.wal
+_tmp_load.csv
+
 # Env files
 .env
 .env.local

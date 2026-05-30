@@ -39,6 +39,32 @@ services:
       timeout: 2s
       retries: 10
 
+  # ── DuckDB benchmark runner ──
+  # Containerized so it competes with Postgres under identical resource caps
+  # (4 CPU / 8 GB). Students can also run scripts natively on the host with
+  # `uv run python <script>` — see slide notes. The reveal at the end of the
+  # lesson is: lift the cage, and DuckDB gets even faster.
+  duckdb:
+    build: .
+    container_name: lesson3-duckdb
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    environment:
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      CRDB_HOST: crdb-1
+      CRDB_PORT: "26257"
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8g
+    command: sleep infinity
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # ── CockroachDB cluster (for sharding demo) ──
   crdb-1:
     image: cockroachdb/cockroach:v24.3.14

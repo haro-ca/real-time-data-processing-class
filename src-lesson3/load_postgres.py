@@ -1,102 +1,106 @@
-"""Load NYC Taxi Parquet data into Postgres using DuckDB as the converter.
+"""Load NYC Taxi Parquet data into Postgres, streaming via DuckDB's postgres extension.
 
-DuckDB reads Parquet natively and exports to CSV which Postgres can COPY.
-This demonstrates the loading cost asymmetry: minutes for Postgres vs. zero for DuckDB.
+The DuckDB postgres extension issues a server-side COPY under the hood and streams
+batches directly from the parquet reader into Postgres — no intermediate CSV file
+on disk. This matters on laptops with tight disk budgets (a CSV intermediate for
+128M rows is ~13 GB).
+
+Index is dropped before insert and recreated after — building incrementally during
+a 128M-row bulk load is dramatically slower than building once at the end.
 
 Usage:
-    python load_postgres.py [--limit 1000000]
+    uv run python load_postgres.py [--limit 1000000]
 """
 
 import argparse
-import subprocess
+import os
 import time
 from pathlib import Path
 
 import duckdb
 
 DATA_DIR = Path(__file__).parent / "data"
-PG_DSN = "postgresql://bench:bench@localhost:5432/bench"
+PG_HOST = os.environ.get("PG_HOST", "localhost")
+PG_PORT = os.environ.get("PG_PORT", "5432")
+PG_CONN_STR = f"host={PG_HOST} port={PG_PORT} user=bench password=bench dbname=bench"
 
 
 def load(limit: int | None = None) -> None:
-    parquet_glob = str(DATA_DIR / "yellow_tripdata_2023-*.parquet")
+    parquet_glob = str(DATA_DIR / "yellow_tripdata_*.parquet")
 
     print("Loading NYC Taxi data into Postgres...")
     print(f"  Source: {parquet_glob}")
-    if limit:
-        print(f"  Limit: {limit:,} rows")
 
-    # Use DuckDB to read Parquet and pipe CSV into Postgres COPY
     con = duckdb.connect()
+    con.sql("INSTALL postgres; LOAD postgres")
+    con.sql(f"ATTACH '{PG_CONN_STR}' AS pg (TYPE postgres)")
 
-    # Count total rows available
-    total = con.sql(f"SELECT COUNT(*) FROM '{parquet_glob}'").fetchone()[0]
-    print(f"  Total rows in Parquet: {total:,}")
+    total = con.sql(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_glob}', union_by_name=true)"
+    ).fetchone()[0]
+    print(f"  Total rows available: {total:,}")
 
     rows_to_load = limit or total
     print(f"  Loading: {rows_to_load:,} rows")
     print()
 
-    t0 = time.monotonic()
+    print("  Resetting target table (TRUNCATE + drop index)...")
+    con.sql("CALL postgres_execute('pg', 'DROP INDEX IF EXISTS idx_trips_pickup')")
+    con.sql("CALL postgres_execute('pg', 'TRUNCATE trips')")
 
-    # Export to a temp CSV, then COPY into Postgres
-    # (More robust than piping for large datasets)
-    csv_path = DATA_DIR / "_tmp_load.csv"
-    query = f"""
-        COPY (
-            SELECT
-                VendorID as vendor_id,
-                tpep_pickup_datetime as pickup_datetime,
-                tpep_dropoff_datetime as dropoff_datetime,
-                passenger_count,
-                trip_distance,
-                PULocationID as pickup_location_id,
-                DOLocationID as dropoff_location_id,
-                RatecodeID as rate_code_id,
-                payment_type,
-                fare_amount,
-                extra,
-                mta_tax,
-                tip_amount,
-                tolls_amount,
-                total_amount,
-                congestion_surcharge,
-                airport_fee
-            FROM '{parquet_glob}'
-            LIMIT {rows_to_load}
-        ) TO '{csv_path}' (HEADER, DELIMITER ',')
-    """
-    con.sql(query)
+    t0 = time.monotonic()
+    print("  Streaming parquet → Postgres COPY...")
+    # union_by_name handles: (a) airport_fee vs Airport_fee case drift between 2023
+    # and 2024+, and (b) cbd_congestion_fee being absent from years before 2025.
+    con.sql(f"""
+        INSERT INTO pg.trips
+        SELECT
+            CAST(VendorID AS INTEGER)              AS vendor_id,
+            tpep_pickup_datetime                   AS pickup_datetime,
+            tpep_dropoff_datetime                  AS dropoff_datetime,
+            CAST(passenger_count AS INTEGER)       AS passenger_count,
+            trip_distance,
+            CAST(RatecodeID AS INTEGER)            AS rate_code_id,
+            store_and_fwd_flag,
+            CAST(PULocationID AS INTEGER)          AS pickup_location_id,
+            CAST(DOLocationID AS INTEGER)          AS dropoff_location_id,
+            CAST(payment_type AS INTEGER)          AS payment_type,
+            fare_amount,
+            extra,
+            mta_tax,
+            tip_amount,
+            tolls_amount,
+            improvement_surcharge,
+            total_amount,
+            congestion_surcharge,
+            airport_fee,
+            cbd_congestion_fee
+        FROM read_parquet('{parquet_glob}', union_by_name=true)
+        LIMIT {rows_to_load}
+    """)
+    copy_time = time.monotonic() - t0
+    print(f"  INSERT (streamed COPY): {copy_time:.1f}s")
+
+    t1 = time.monotonic()
+    print("  Building index on pickup_datetime...")
+    con.sql(
+        "CALL postgres_execute('pg', 'CREATE INDEX idx_trips_pickup ON trips (pickup_datetime)')"
+    )
+    index_time = time.monotonic() - t1
+    print(f"  CREATE INDEX:           {index_time:.1f}s")
+
+    t2 = time.monotonic()
+    print("  Running ANALYZE...")
+    con.sql("CALL postgres_execute('pg', 'ANALYZE trips')")
+    analyze_time = time.monotonic() - t2
+    print(f"  ANALYZE:                {analyze_time:.1f}s")
+
     con.close()
 
-    export_time = time.monotonic() - t0
-    print(f"  DuckDB export to CSV: {export_time:.1f}s")
-
-    # COPY CSV into Postgres
-    t1 = time.monotonic()
-    cmd = [
-        "psql", PG_DSN, "-c",
-        f"\\COPY trips FROM '{csv_path}' WITH (FORMAT csv, HEADER true)"
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  ERROR: {result.stderr}")
-        return
-
-    copy_time = time.monotonic() - t1
     total_time = time.monotonic() - t0
-
-    print(f"  Postgres COPY: {copy_time:.1f}s")
-    print(f"  Total: {total_time:.1f}s for {rows_to_load:,} rows")
-    print(f"  Rate: {rows_to_load / total_time:,.0f} rows/sec")
-
-    # Cleanup
-    csv_path.unlink(missing_ok=True)
-
-    # ANALYZE for query planner
-    print("  Running ANALYZE...")
-    subprocess.run(["psql", PG_DSN, "-c", "ANALYZE trips;"], capture_output=True)
-    print("  Done.")
+    print()
+    print(f"  Total: {total_time:.1f}s for {rows_to_load:,} rows "
+          f"({rows_to_load / total_time:,.0f} rows/sec)")
 
 
 if __name__ == "__main__":

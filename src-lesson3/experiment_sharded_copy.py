@@ -3,22 +3,27 @@
 Demonstrates that when each connection writes to a disjoint key range
 (different shard/range), CockroachDB can exceed single-node Postgres throughput.
 
-Requires the Lesson 2 CockroachDB cluster to be running:
-    cd ../src-lesson2 && docker compose up -d
+Uses the 3-node CockroachDB cluster from this lesson's docker-compose.yml
+(brought up alongside Postgres via `docker compose up -d`).
 
 Usage:
-    python experiment_sharded_copy.py [--ranges 8] [--conns 8] [--rows 100000]
+    uv run python experiment_sharded_copy.py [--ranges 8] [--conns 8] [--rows 100000]
 """
 
 import argparse
 import asyncio
+import os
 import random
 import time
 
 import asyncpg
 
-# CockroachDB DSN (from lesson 2 cluster)
-DSN = "postgresql://root@localhost:26257/bench?sslmode=disable"
+# CockroachDB DSN — host/port default to localhost for native runs; the
+# duckdb container overrides via CRDB_HOST=crdb-1 so it can reach the cluster
+# on the docker network.
+CRDB_HOST = os.environ.get("CRDB_HOST", "localhost")
+CRDB_PORT = os.environ.get("CRDB_PORT", "26257")
+DSN = f"postgresql://root@{CRDB_HOST}:{CRDB_PORT}/bench?sslmode=disable"
 
 
 async def setup_ranges(n_ranges: int) -> None:
@@ -112,12 +117,11 @@ async def run(n_ranges: int, n_conns: int, total_rows: int, batch_size: int) -> 
     print(f"Done. {total_rows:,} rows in {elapsed:.1f}s → {tps:,.0f} TPS")
     print(f"  ({n_conns} writers across {n_ranges} ranges — no cross-range contention)")
     print()
-    print("  Compare: L1 single Postgres parallel COPY (4 conns) = ~242k TPS")
-    print(f"  This run: {tps:,.0f} TPS")
-    if tps > 242_000:
-        print(f"  → Sharding WINS: {tps/242_000:.1f}× single-node ceiling")
-    else:
-        print("  → Below single-node (likely resource-constrained in Docker)")
+    print("  Note: on a laptop, 3 CRDB nodes share one machine's disk/CPU, so this")
+    print("  almost certainly LOSES to single-node Postgres. The point of the demo")
+    print("  is to show the *mechanism* — disjoint key ranges → independent writes")
+    print("  with no coordination. On production hardware with separate nodes, this")
+    print("  scales roughly linearly with shard count.")
 
     await pool.close()
 
