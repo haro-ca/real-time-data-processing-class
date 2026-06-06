@@ -34,6 +34,11 @@ uv run python src/scd2.py --merge --effective-date 2024-03-15     # version the 
 uv run python src/scd2.py --show 42                              # see the version history
 uv run python src/schema_validate.py --simulate rename           # schema drift → loud FAIL
 uv run python src/schema_validate.py --reset                     # restore the contract
+uv run python src/data_quality.py 2024-01-15                     # value invariants (shape ≠ values)
+
+# 4b. Edge cases worth feeling once
+uv run python src/experiment_upsert_gap.py                       # UPSERT orphans a vanished key
+uv run python src/experiment_timezone.py 2024-01-15              # ::date shifts with session TZ
 
 # 5. Hour 3 — the orchestrators (already running from `docker compose up -d`)
 #    Airflow  http://localhost:8080   (dev: auto-admin, no login prompt)
@@ -64,7 +69,10 @@ src-lesson4/
 │   ├── pipeline_failure.py      # Phase 3 — failure injection + retry
 │   ├── pipeline_watermark.py    # Phase 4 — watermark + atomic metadata
 │   ├── scd2.py                  # SCD Type 2 dimension merge
-│   ├── schema_validate.py       # schema contract check
+│   ├── schema_validate.py       # schema contract check (shape)
+│   ├── data_quality.py          # value-level invariants (values)
+│   ├── experiment_upsert_gap.py # UPSERT orphaned-key gap vs DELETE+INSERT
+│   ├── experiment_timezone.py   # timezone-dependent partition boundary
 │   └── prove_idempotent.py      # the take-home proof harness
 ├── airflow/                # Hour 3 — Airflow DAG (tasks)
 │   ├── Dockerfile
@@ -83,7 +91,15 @@ src-lesson4/
 | Failure recovery | `pipeline_failure.py` | `pipeline_failure.py` — txn rollback + retry |
 | Atomic watermark | `pipeline_watermark.py` | data write + metadata write in one txn |
 | Slowly Changing Dimensions | `scd2.py` | `scd2.py --show 42` — version history for customer 42 |
-| Schema evolution | `schema_validate.py` | `schema_validate.py --simulate rename` — watch it FAIL |
+| Schema evolution (shape) | `schema_validate.py` | `schema_validate.py --simulate rename` — watch it FAIL |
+| Data quality (values) | `data_quality.py` | `data_quality.py 2024-01-15` — value invariants, non-zero exit on failure |
+
+### Edge cases the demos make concrete
+
+| Edge case | Script | What it shows |
+|-----------|--------|---------------|
+| UPSERT orphaned key | `experiment_upsert_gap.py` | a status that vanishes survives under UPSERT, but not under DELETE+INSERT |
+| Timezone partition boundary | `experiment_timezone.py` | `created_at::date` row counts differ by session timezone |
 
 ## Idempotency strategy
 
@@ -93,6 +109,12 @@ alternative. The DELETE and the INSERTs must share a transaction: if a crash
 happens before COMMIT, the ROLLBACK undoes the DELETE too, so the target is never
 left empty. `prove_idempotent.py` runs the pipeline 3× and compares an md5
 checksum of the resulting rows.
+
+> **DELETE + INSERT is the safer default.** UPSERT only overwrites keys that
+> *reappear*; if a key drops out of a day's data (a status with zero rows), its
+> stale row is left orphaned. DELETE + INSERT rewrites the whole partition, so a
+> vanished key is removed too. `experiment_upsert_gap.py` demonstrates the
+> difference. Prefer UPSERT only when every key is guaranteed to reappear.
 
 ## Orchestrators
 
