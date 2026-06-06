@@ -80,6 +80,11 @@ def load(rows: list[tuple]) -> None:
 
 def run_pipeline(target_date: date) -> None:
     print(f"Extracting orders for {target_date}...")
+    con = connect_target()
+    before = con.execute("SELECT COUNT(*) FROM daily_revenue WHERE date = ?", (target_date,)).fetchone()[0]
+    print(f"  Before: {before} rows for {target_date}")
+    con.close()
+
     raw = extract(target_date)
     print(f"  Extracted {len(raw):,} rows")
     print("Transforming...")
@@ -87,7 +92,17 @@ def run_pipeline(target_date: date) -> None:
     print(f"  Produced {len(agg)} aggregated rows")
     print("Loading (naive append)...")
     load(agg)
-    print("  Done.")
+
+    con = connect_target()
+    after = con.execute("SELECT COUNT(*) FROM daily_revenue WHERE date = ?", (target_date,)).fetchone()[0]
+    print(f"  After:  {after} rows for {target_date}")
+    if after == before + len(agg):
+        print(f"  ⚠️  DUPLICATION: +{len(agg)} rows (naive append)")
+    elif after == before:
+        print(f"  ✓ NO CHANGE: {after} rows (idempotent)")
+    else:
+        print(f"  ? UNEXPECTED: {before} → {after}")
+    con.close()
 
 
 if __name__ == "__main__":

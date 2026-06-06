@@ -69,13 +69,28 @@ def load_upsert(rows: list[tuple], target_date: date) -> None:
 
 def run_pipeline(target_date: date, strategy: str = "delete-insert") -> None:
     print(f"[{strategy}] {target_date}")
+    con = connect_target()
+    table = "daily_revenue_keyed" if strategy == "upsert" else "daily_revenue"
+    before = con.execute(f"SELECT COUNT(*) FROM {table} WHERE date = ?", (target_date,)).fetchone()[0]
+    print(f"  Before: {before} rows for {target_date}")
+    con.close()
+
     raw = extract(target_date)
     agg = transform(raw, target_date)
     if strategy == "upsert":
         load_upsert(agg, target_date)
     else:
         load_delete_insert(agg, target_date)
+
+    con = connect_target()
+    after = con.execute(f"SELECT COUNT(*) FROM {table} WHERE date = ?", (target_date,)).fetchone()[0]
+    print(f"  After:  {after} rows for {target_date}")
     print(f"  Loaded {len(agg)} rows ({len(raw):,} source orders)")
+    if after == before + len(agg):
+        print(f"  ⚠️  DUPLICATION: +{len(agg)} rows (naive append)")
+    elif after == len(agg):
+        print(f"  ✓ IDEMPOTENT: {after} rows (partition rewrite)")
+    con.close()
 
 
 if __name__ == "__main__":

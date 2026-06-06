@@ -130,6 +130,32 @@ h3{font-family:var(--sans);font-weight:600;font-size:clamp(1rem,2.2vw,1.5rem);le
 .arch{font-family:var(--mono);font-size:clamp(0.5rem,0.85vw,0.68rem);color:var(--ink-soft);line-height:1.5;white-space:pre;
   background:var(--paper2);border:1px solid var(--rule);border-radius:5px;padding:clamp(0.7rem,1.4vh,1.1rem) clamp(0.9rem,1.6vw,1.3rem);overflow:hidden}
 
+/* ---- HTML architecture diagram (overlap-proof; real boxes, content-sized center) ---- */
+.archviz{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:clamp(0.6rem,2vw,1.7rem);
+  width:100%;max-width:900px;margin:0 auto}
+.arch-node{min-width:0;border:1.5px solid var(--rule-strong);border-radius:8px;background:var(--paper2);
+  padding:clamp(0.55rem,1.3vh,0.95rem) clamp(0.7rem,1.5vw,1.15rem);display:flex;flex-direction:column;gap:0.3rem}
+.arch-node.tgt{border-color:var(--accent);background:var(--accent-soft)}
+.an-title{font-family:var(--mono);font-weight:700;font-size:clamp(0.56rem,0.95vw,0.74rem);letter-spacing:0.03em;text-align:center;color:var(--ink)}
+.arch-node.tgt .an-title{color:var(--accent)}
+.an-rule{border:0;border-top:1px solid var(--rule-strong);opacity:.6;margin:0.12rem 0 0.22rem}
+.arch-row{display:flex;justify-content:space-between;gap:0.8rem;font-family:var(--mono);font-size:clamp(0.56rem,0.98vw,0.74rem);color:var(--ink)}
+.arch-row .num{color:var(--muted);white-space:nowrap}
+.arch-line{font-family:var(--mono);font-size:clamp(0.56rem,0.98vw,0.74rem);color:var(--ink);line-height:1.5}
+.arch-foot{margin-top:0.32rem;font-family:var(--mono);font-size:clamp(0.5rem,0.84vw,0.64rem);font-style:italic;color:var(--muted);text-align:center}
+.arch-conn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;padding:0 clamp(0.1rem,0.8vw,0.5rem)}
+.ac-top{font-family:var(--mono);font-size:clamp(0.5rem,0.85vw,0.66rem);color:var(--accent);white-space:nowrap;letter-spacing:0.02em}
+.ac-arrow{align-self:stretch;height:2px;background:var(--accent);position:relative;min-width:clamp(64px,8vw,110px)}
+.ac-arrow::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  border-left:7px solid var(--accent);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.ac-sub{font-family:var(--mono);font-size:clamp(0.46rem,0.78vw,0.6rem);color:var(--muted);white-space:nowrap}
+@media(max-width:680px){
+  .archviz{grid-template-columns:1fr;gap:0.6rem}
+  .ac-arrow{min-width:0;width:2px;height:26px;align-self:center}
+  .ac-arrow::after{right:auto;left:50%;top:auto;bottom:-1px;transform:translateX(-50%);
+    border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--accent);border-bottom:0}
+}
+
 /* ---- table ---- */
 .dtable{width:100%;border-collapse:collapse}
 .dtable th,.dtable td{font-family:var(--sans);font-size:clamp(0.62rem,1.05vw,0.84rem);
@@ -371,6 +397,11 @@ duck.<span class="fn">execute</span>(<span class="s">"INSERT INTO daily_revenue 
       <li><strong>ETL:</strong> extract &rarr; <span class="hl">transform</span> &rarr; load. The shape every textbook draws.</li>
       <li><strong>ELT:</strong> extract &rarr; load &rarr; <span class="hl">transform</span>. The shape the cloud warehouse era made cheap.</li>
     </ul>
+    <ul class="bullets reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);max-width:600px;font-size:0.9em;color:var(--muted);">
+      <li><strong>1990s ELT (before the term):</strong> Load flat files to staging, transform in warehouse. Staging was expensive &mdash; deleted after use. Resource contention between transform and consume.</li>
+      <li><strong>2000s ETL:</strong> Integration server (Informatica, etc.) transformed in memory before load. Eliminated contention. Visual drag-and-drop over SQL.</li>
+      <li><strong>2010s+ ELT:</strong> Cloud storage is cheap. Compute-storage separation (Snowflake). Transform in warehouse with dbt (SQL + Jinja). Separate clusters = no contention. Raw data stays accessible.</li>
+    </ul>
     <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       <span class="ctxt"><strong>Our pipeline is a hybrid.</strong> We <em>extract</em> with <span class="ink-mono">psycopg</span>, then <em>transform &amp; load</em> inside <span class="ink-mono">DuckDB</span>, ELT-style performance, technically ETL. The label matters less than the four problems; those are universal.</span>
@@ -385,30 +416,29 @@ duck.<span class="fn">execute</span>(<span class="s">"INSERT INTO daily_revenue 
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker reveal">The stack we&rsquo;ll build</div>
     <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Source, target, and the job between.</h2>
-    <div class="reveal" style="margin-top:clamp(0.6rem,1.6vh,1.1rem);display:flex;justify-content:center;">
-    <svg viewBox="0 0 880 240" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:860px;height:auto;max-height:46vh;">
-      <rect class="dg-node" x="20" y="54" width="300" height="150" rx="8"/>
-      <text class="dg-t" x="170" y="83" style="font-weight:700;">OLTP SOURCE &middot; Postgres</text>
-      <line x1="40" y1="97" x2="300" y2="97" class="dg-line" style="stroke-width:1;opacity:.22;"/>
-      <text class="dg-t" x="40" y="125" text-anchor="start">orders</text>
-      <text class="dg-cap" x="300" y="125" text-anchor="end">1,000,000 rows</text>
-      <text class="dg-t" x="40" y="153" text-anchor="start">customers</text>
-      <text class="dg-cap" x="300" y="153" text-anchor="end">50,000 rows</text>
-      <text class="dg-cap" x="170" y="187" style="font-style:italic;">row-store, born here</text>
-
-      <rect class="dg-node-red" x="560" y="54" width="300" height="150" rx="8"/>
-      <text class="dg-t" x="710" y="83" style="font-weight:700;fill:var(--accent);">ANALYTICAL TARGET &middot; DuckDB</text>
-      <line x1="580" y1="97" x2="840" y2="97" class="dg-line" style="stroke-width:1;opacity:.22;"/>
-      <text class="dg-t" x="580" y="121" text-anchor="start">daily_revenue</text>
-      <text class="dg-t" x="580" y="145" text-anchor="start">customers_dim (SCD2)</text>
-      <text class="dg-t" x="580" y="169" text-anchor="start">pipeline_metadata (watermark)</text>
-      <text class="dg-cap" x="710" y="194" style="font-style:italic;">column-store, questioned here</text>
-
-      <line x1="326" y1="120" x2="552" y2="120" class="dg-red"/>
-      <path d="M552 120 l-11 -5.5 l0 11 z" fill="var(--accent)"/>
-      <text class="dg-cap-red" x="440" y="109">extract &middot; transform &middot; load</text>
-      <text class="dg-cap" x="440" y="143">re-runnable &middot; idempotent</text>
-    </svg>
+    <div class="reveal" style="margin-top:clamp(0.6rem,1.6vh,1.1rem);">
+    <div class="archviz">
+      <div class="arch-node">
+        <div class="an-title">OLTP SOURCE &middot; Postgres</div>
+        <div class="an-rule"></div>
+        <div class="arch-row"><span>orders</span><span class="num">1,000,000 rows</span></div>
+        <div class="arch-row"><span>customers</span><span class="num">50,000 rows</span></div>
+        <div class="arch-foot">row-store, born here</div>
+      </div>
+      <div class="arch-conn">
+        <div class="ac-top">extract &middot; transform &middot; load</div>
+        <div class="ac-arrow"></div>
+        <div class="ac-sub">re-runnable &middot; idempotent</div>
+      </div>
+      <div class="arch-node tgt">
+        <div class="an-title">ANALYTICAL TARGET &middot; DuckDB</div>
+        <div class="an-rule"></div>
+        <div class="arch-line">daily_revenue</div>
+        <div class="arch-line">customers_dim (SCD2)</div>
+        <div class="arch-line">pipeline_metadata (watermark)</div>
+        <div class="arch-foot">column-store, questioned here</div>
+      </div>
+    </div>
     </div>
     <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
@@ -435,8 +465,8 @@ duck.<span class="fn">execute</span>(<span class="s">"INSERT INTO daily_revenue 
         <rect class="row-ink" x="36" y="98" width="120" height="16" rx="2"/>
         <rect class="row-ink" x="36" y="78" width="120" height="16" rx="2"/>
         <text style="font-family:var(--mono);font-size:17px;fill:var(--accent);" x="166" y="92">&#10003;</text>
-        <text class="dg-cap" x="96" y="158">run &times;3 &rarr; 3 rows</text>
-        <text class="dg-cap" x="96" y="174">same state</text>
+        <text class="dg-cap" x="96" y="158">Before: 3 rows</text>
+        <text class="dg-cap" x="96" y="174">After: 3 rows (no change)</text>
 
         <text class="dg-cap-red" x="360" y="44" style="font-weight:700;">naive load</text>
         <rect class="row-red" x="300" y="180" width="120" height="13" rx="2"/>
@@ -448,7 +478,8 @@ duck.<span class="fn">execute</span>(<span class="s">"INSERT INTO daily_revenue 
         <rect class="row-red" x="300" y="90" width="120" height="13" rx="2"/>
         <rect class="row-red" x="300" y="75" width="120" height="13" rx="2"/>
         <rect class="row-red" x="300" y="60" width="120" height="13" rx="2"/>
-        <text class="dg-cap-red" x="360" y="208">run &times;3 &rarr; 9 rows &middot; 3&rarr;6&rarr;9</text>
+        <text class="dg-cap-red" x="360" y="208">Before: 3 &rarr; After: 9</text>
+        <text class="dg-cap-red" x="360" y="223" style="font-size:14px;">⚠️ DUPLICATION: +3 rows</text>
       </svg>
     </div>
   </div>
@@ -1306,21 +1337,28 @@ con.<span class="fn">execute</span>(<span class="r">"COMMIT"</span>)</div>
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker reveal" style="color:var(--muted);border-color:var(--rule-strong);">Annex &middot; the stack</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Source, target, dataset.</h2>
-    <div class="reveal" style="margin-top:clamp(0.5rem,1.3vh,0.9rem);display:flex;justify-content:center;">
-    <svg viewBox="0 0 880 130" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:850px;height:auto;max-height:30vh;">
-      <rect class="dg-node" x="20" y="28" width="280" height="76" rx="7"/>
-      <text class="dg-t" x="160" y="53" style="font-weight:700;">OLTP SOURCE &middot; Postgres</text>
-      <text class="dg-cap" x="160" y="73">orders 1M &middot; customers 50k</text>
-      <text class="dg-cap" x="160" y="91" style="font-style:italic;">born here</text>
-      <line x1="306" y1="66" x2="572" y2="66" class="dg-red"/>
-      <path d="M572 66 l-11 -5.5 l0 11 z" fill="var(--accent)"/>
-      <text class="dg-cap-red" x="439" y="55">extract &middot; transform &middot; load</text>
-      <rect class="dg-node-red" x="580" y="28" width="280" height="76" rx="7"/>
-      <text class="dg-t" x="720" y="49" style="font-weight:700;fill:var(--accent);">ANALYTICAL TARGET &middot; DuckDB</text>
-      <text class="dg-cap" x="720" y="68">daily_revenue &middot; customers_dim</text>
-      <text class="dg-cap" x="720" y="84">pipeline_metadata</text>
-      <text class="dg-cap" x="720" y="99" style="font-style:italic;">questioned here</text>
-    </svg>
+    <div class="reveal" style="margin-top:clamp(0.5rem,1.3vh,0.9rem);">
+    <div class="archviz">
+      <div class="arch-node">
+        <div class="an-title">OLTP SOURCE &middot; Postgres</div>
+        <div class="an-rule"></div>
+        <div class="arch-row"><span>orders</span><span class="num">1M</span></div>
+        <div class="arch-row"><span>customers</span><span class="num">50k</span></div>
+        <div class="arch-foot">born here</div>
+      </div>
+      <div class="arch-conn">
+        <div class="ac-top">extract &middot; transform &middot; load</div>
+        <div class="ac-arrow"></div>
+      </div>
+      <div class="arch-node tgt">
+        <div class="an-title">ANALYTICAL TARGET &middot; DuckDB</div>
+        <div class="an-rule"></div>
+        <div class="arch-line">daily_revenue</div>
+        <div class="arch-line">customers_dim</div>
+        <div class="arch-line">pipeline_metadata</div>
+        <div class="arch-foot">questioned here</div>
+      </div>
+    </div>
     </div>
     <div class="reveal" style="display:flex;gap:clamp(1.2rem,4vw,3rem);flex-wrap:wrap;margin-top:clamp(0.6rem,1.5vh,1.1rem);">
       <div><div class="stat">1,000,000</div><div class="stat-label">orders · 90 days · 3 statuses</div></div>
