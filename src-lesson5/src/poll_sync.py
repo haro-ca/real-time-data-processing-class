@@ -49,9 +49,8 @@ def poll(con: duckdb.DuckDBPyConnection, last_sync: str) -> tuple[int, str]:
     if n:
         con.execute("DELETE FROM orders_polled WHERE id IN (SELECT id FROM chg)")
         con.execute("INSERT INTO orders_polled SELECT id, customer_id, amount, status, created_at FROM chg")
-    new_mark = con.execute(
-        "SELECT coalesce(max(updated_at), TIMESTAMP %s)::VARCHAR FROM chg", [last_sync]
-    ).fetchone()[0]
+    hwm = con.execute("SELECT max(updated_at)::VARCHAR FROM chg").fetchone()[0]
+    new_mark = hwm if hwm is not None else last_sync  # empty poll -> keep the mark
     return n, new_mark
 
 

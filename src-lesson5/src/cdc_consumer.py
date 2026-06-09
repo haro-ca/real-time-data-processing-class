@@ -32,14 +32,17 @@ import psycopg
 
 from config import PG_DSN, SLOT, connect_target, mirror_checksum
 
-# wal2json format-version 2 = one JSON object per change. include-transaction=false
-# drops begin/commit markers; add-tables filters to orders (wal2json ignores the
-# publication — that's a pgoutput/Debezium concept).
+# wal2json format-version 2 = one JSON object per change, wrapped in begin/commit
+# markers (action "B"/"C"). We KEEP those markers on purpose: the commit ("C") row
+# carries the transaction's commit LSN, and that commit LSN is the only safe point
+# to confirm to. A change row's own LSN comes *before* its commit, so confirming to
+# it never advances past the last transaction — the slot would re-deliver forever.
+# add-tables filters to orders (wal2json ignores the publication — that's a
+# pgoutput/Debezium concept).
 PEEK_SQL = """
     SELECT lsn::text, data
     FROM pg_logical_slot_peek_changes(%s, NULL, %s,
            'format-version', '2',
-           'include-transaction', 'false',
            'add-tables', 'public.orders')
 """
 
@@ -50,7 +53,13 @@ def cols_to_dict(items) -> dict:
 
 
 def apply(duck, ev: dict, lsn: str) -> None:
-    """Apply one change event to the DuckDB mirror, idempotently, in one txn."""
+    """Apply one change event to the DuckDB mirror, idempotently, in one txn.
+
+    delete-then-insert keyed on the primary key. The DELETE runs for I, U *and* D,
+    so re-applying any event is a no-op: an INSERT replayed after a crash deletes
+    the row it already wrote and writes it again, instead of failing on a duplicate
+    primary key. CDC is at-least-once; this is exactly what makes replay harmless.
+    """
     action = ev["action"]                       # I / U / D
     if action in ("U", "D"):
         ident = cols_to_dict(ev.get("identity")) or cols_to_dict(ev.get("columns"))
@@ -59,8 +68,7 @@ def apply(duck, ev: dict, lsn: str) -> None:
         row_id = cols_to_dict(ev["columns"])["id"]
 
     duck.execute("BEGIN")
-    if action in ("U", "D"):
-        duck.execute("DELETE FROM orders WHERE id = ?", [row_id])
+    duck.execute("DELETE FROM orders WHERE id = ?", [row_id])
     if action in ("I", "U"):
         c = cols_to_dict(ev["columns"])
         duck.execute(
@@ -87,15 +95,27 @@ def run(once: bool, limit: int | None, crash_after: int | None, interval: float,
                 time.sleep(interval)
                 continue
 
-            last_lsn = None
+            # wal2json brackets each txn with begin/commit markers (action B/C).
+            # Apply only I/U/D; remember the latest commit LSN we fully applied —
+            # that's the safe point to confirm to.
+            last_commit_lsn = None
+            n_changes = 0
             for lsn, data in rows:
-                apply(duck, json.loads(data), lsn)
-                last_lsn = lsn
-                applied += 1
+                ev = json.loads(data)
+                action = ev["action"]
+                if action == "C":            # commit marker => a safe confirm point
+                    last_commit_lsn = lsn
+                    continue
+                if action == "B":            # begin marker => nothing to apply
+                    continue
 
-                # Simulate a crash AFTER applying but BEFORE confirming: the
-                # changes we just applied were never advanced, so the next run
-                # re-peeks and re-applies them (no-op, idempotent).
+                apply(duck, ev, lsn)
+                applied += 1
+                n_changes += 1
+
+                # Simulate a crash AFTER applying but BEFORE confirming: nothing was
+                # advanced, so the next run re-peeks the whole transaction and
+                # re-applies it (no-op, idempotent).
                 if crash_after is not None and applied >= crash_after:
                     n, chk = mirror_checksum(duck)
                     print(f"  applied {applied} events ... ^C  (simulated crash before confirm)")
@@ -105,11 +125,13 @@ def run(once: bool, limit: int | None, crash_after: int | None, interval: float,
                 if limit is not None and applied >= limit:
                     break
 
-            # CONFIRM: advance the slot to the last change we durably applied.
-            pg.execute("SELECT pg_replication_slot_advance(%s, %s::pg_lsn)", (SLOT, last_lsn))
+            # CONFIRM: advance the slot to the last COMMIT we durably applied.
+            if last_commit_lsn is not None:
+                pg.execute("SELECT pg_replication_slot_advance(%s, %s::pg_lsn)",
+                           (SLOT, last_commit_lsn))
 
             n, chk = mirror_checksum(duck)
-            print(f"  +{len(rows):<4} applied  (total {applied})  confirmed {last_lsn}  "
+            print(f"  +{n_changes:<4} applied  (total {applied})  confirmed {last_commit_lsn}  "
                   f"mirror {n} rows  checksum {chk}")
 
             if limit is not None and applied >= limit:
