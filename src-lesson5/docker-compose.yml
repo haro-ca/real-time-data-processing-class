@@ -1,0 +1,54 @@
+services:
+  # ── OLTP source: Postgres + wal2json, wal_level=logical (CDC-ready) ──
+  # Same bench/bench@bench source as Lesson 4; the only additions are the
+  # wal2json plugin (built into ./postgres) and the logical-decoding flags.
+  postgres:
+    build: ./postgres            # postgres:16 + postgresql-16-wal2json
+    container_name: lesson5-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: bench
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - wal_level=logical            # decode row changes from the WAL (the whole point)
+      - -c
+      - max_replication_slots=8      # orders_slot + abandoned_slot + debezium_slot + headroom
+      - -c
+      - max_wal_senders=8
+      - -c
+      - shared_buffers=1GB
+      # NOTE: max_slot_wal_keep_size is left at its default (-1 = unlimited) ON
+      # PURPOSE, so experiment_abandon_slot.py can show WAL growing without bound.
+      # In production you would cap it as a safety valve.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  # ── Runner: the CDC consumer + every demo script (raw python via uv) ──
+  # Shares ./data with the host so data/cdc.duckdb is visible either way.
+  runner:
+    build: .
+    container_name: lesson5-runner
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    environment:
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      DUCKDB_PATH: /workspace/data/cdc.duckdb
+    command: sleep infinity
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -1,0 +1,43 @@
+# Debezium show-and-tell overlay (slide 27-29). OPTIONAL — not needed for the
+# hands-on lesson. It runs the production CDC stack (Kafka Connect + the Debezium
+# Postgres connector) against the SAME postgres source from ../docker-compose.yml,
+# so you can see the tool automate exactly what you built by hand.
+#
+# Run it COMBINED with the base file so it joins the same network/project:
+#   docker compose -f docker-compose.yml -f debezium/docker-compose.debezium.yml up -d
+#
+# Uses Debezium's own images (the classic quickstart trio). ZooKeeper is the
+# old path; modern Kafka is KRaft. For a 10-minute show-and-tell, reliability of
+# copy-paste wins.
+
+services:
+  zookeeper:
+    image: quay.io/debezium/zookeeper:2.7
+    container_name: lesson5-zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: quay.io/debezium/kafka:2.7
+    container_name: lesson5-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+
+  connect:
+    image: quay.io/debezium/connect:2.7
+    container_name: lesson5-connect
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+    depends_on:
+      - kafka
+      - postgres

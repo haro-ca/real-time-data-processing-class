@@ -1,0 +1,9 @@
+[project]
+name = "lesson5-cdc"
+version = "0.1.0"
+description = "Lesson 5: Change Data Capture — log-based CDC from Postgres to DuckDB with wal2json"
+requires-python = ">=3.13"
+dependencies = [
+    "duckdb>=1.1.0",
+    "psycopg[binary]>=3.2.0",
+]

@@ -1,0 +1,7 @@
+# Lesson 5 — transient demo artifacts
+data/
+*.duckdb
+*.duckdb.wal
+.venv/
+__pycache__/
+uv.lock
