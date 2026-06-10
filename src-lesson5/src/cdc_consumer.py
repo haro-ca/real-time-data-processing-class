@@ -16,11 +16,18 @@ apply is idempotent: UPDATE/DELETE+INSERT keyed on id (the same trick as Lesson 
 send_feedback() instead of peek+advance. Same idea — confirm an LSN after you've
 durably applied — with more plumbing. We read JSON so the lesson stays about CDC.)
 
+Schema drift: if the source ships a column the mirror doesn't have, applying the
+event anyway would silently DROP that column — the mirror would lie, the exact
+failure polling had. Default is to fail loud (and since the slot was not advanced,
+nothing is lost: fix the mirror, rerun, the event replays). --ignore-drift keeps
+the old silent behavior, for the demo's "before" act.
+
 Usage:
     python src/cdc_consumer.py                     # stream forever (Ctrl-C to stop)
     python src/cdc_consumer.py --once              # drain what's pending, then exit
     python src/cdc_consumer.py --limit 50          # apply 50 changes then exit
     python src/cdc_consumer.py --crash-after 20    # apply 20, exit BEFORE confirming
+    python src/cdc_consumer.py --ignore-drift      # silently drop unknown columns
 """
 
 import argparse
@@ -52,7 +59,18 @@ def cols_to_dict(items) -> dict:
     return {c["name"]: c.get("value") for c in (items or [])}
 
 
-def apply(duck, ev: dict, lsn: str) -> None:
+# Every source column the consumer KNOWS about — the five it mirrors plus
+# updated_at, which exists on the source only for the polling demo and is
+# deliberately not mirrored. Anything beyond these arriving in an event is
+# schema drift: a column we never decided what to do with.
+KNOWN_COLUMNS = {"id", "customer_id", "amount", "status", "created_at", "updated_at"}
+
+
+class SchemaDrift(RuntimeError):
+    """The source shipped a column the mirror doesn't have."""
+
+
+def apply(duck, ev: dict, lsn: str, strict: bool = True) -> None:
     """Apply one change event to the DuckDB mirror, idempotently, in one txn.
 
     delete-then-insert keyed on the primary key. The DELETE runs for I, U *and* D,
@@ -66,6 +84,21 @@ def apply(duck, ev: dict, lsn: str) -> None:
         row_id = ident["id"]
     else:
         row_id = cols_to_dict(ev["columns"])["id"]
+
+    # Schema drift check BEFORE touching the mirror: a column the mirror doesn't
+    # have can't be applied, only silently dropped — and silent is the one thing
+    # this lesson never forgives. Fail loud; the slot wasn't advanced, so nothing
+    # is lost: ALTER the mirror (or pass --ignore-drift) and rerun.
+    if strict and action in ("I", "U"):
+        drift = sorted(set(cols_to_dict(ev["columns"])) - KNOWN_COLUMNS)
+        if drift:
+            raise SchemaDrift(
+                f"source sent column(s) {drift} the mirror doesn't have (lsn {lsn}).\n"
+                f"  slot NOT advanced — zero events lost.\n"
+                f"  fix:  ALTER TABLE orders ADD COLUMN ... on the mirror, update "
+                f"KNOWN_COLUMNS, rerun\n"
+                f"  or:   rerun with --ignore-drift to drop them silently (the mirror will lie)"
+            )
 
     duck.execute("BEGIN")
     duck.execute("DELETE FROM orders WHERE id = ?", [row_id])
@@ -81,7 +114,7 @@ def apply(duck, ev: dict, lsn: str) -> None:
 
 
 def run(once: bool, limit: int | None, crash_after: int | None, interval: float,
-        batch: int) -> None:
+        batch: int, strict: bool = True) -> None:
     duck = connect_target()
     applied = 0
     print(f"CDC consumer on slot '{SLOT}'. Peek -> apply -> advance. Ctrl-C to stop.\n")
@@ -109,7 +142,7 @@ def run(once: bool, limit: int | None, crash_after: int | None, interval: float,
                 if action == "B":            # begin marker => nothing to apply
                     continue
 
-                apply(duck, ev, lsn)
+                apply(duck, ev, lsn, strict)
                 applied += 1
                 n_changes += 1
 
@@ -149,8 +182,14 @@ if __name__ == "__main__":
     p.add_argument("--crash-after", type=int, help="apply N then exit BEFORE confirming (replay demo)")
     p.add_argument("--interval", type=float, default=0.5, help="poll interval when idle (s)")
     p.add_argument("--batch", type=int, default=5000, help="max changes per peek")
+    p.add_argument("--ignore-drift", action="store_true",
+                   help="silently drop source columns the mirror doesn't have")
     args = p.parse_args()
     try:
-        run(args.once, args.limit, args.crash_after, args.interval, args.batch)
+        run(args.once, args.limit, args.crash_after, args.interval, args.batch,
+            strict=not args.ignore_drift)
     except KeyboardInterrupt:
         print("\nstopped.")
+    except SchemaDrift as e:
+        print(f"\nSCHEMA DRIFT — failing loud, on purpose.\n{e}", file=sys.stderr)
+        sys.exit(2)

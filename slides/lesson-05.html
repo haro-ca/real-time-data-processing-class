@@ -220,6 +220,15 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
 @media(max-height:600px){.kbd-hint{display:none}}
 @media (prefers-reduced-motion:reduce){.reveal{transition-duration:.2s}html{scroll-behavior:auto}}
 
+/* ---- spoiler: demo results stay blurred until the room predicts ---- */
+.spoiler{position:relative;cursor:pointer}
+.spoiler>*{filter:blur(9px);transition:filter .5s var(--ease)}
+.spoiler::after{content:'predict first \00b7 click or press R';position:absolute;inset:0;z-index:2;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+  font-size:clamp(0.6rem,1vw,0.78rem);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent)}
+.spoiler.revealed>*{filter:none}
+.spoiler.revealed::after{display:none}
+
 /* ---- title (slide 1) opening animation + shared stream motion ---- */
 @keyframes titleRise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes drawUnderline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
@@ -251,7 +260,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
 <body>
 
 <div class="progress-bar" id="progressBar"></div>
-<span class="kbd-hint">&uarr; &darr; navigate</span>
+<span class="kbd-hint">&uarr; &darr; navigate &middot; R reveal</span>
 
 <!-- ════════════════════════════════════════════════════════════
      LESSON 5 · CHANGE DATA CAPTURE · "STREAM THE CHANGES"
@@ -362,7 +371,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
     <div class="section-marker reveal">Live &middot; poll_sync.py</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The copy that quietly <em>drifts.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:660px;">Run the poller while a workload does inserts, one <span class="ink-mono">DELETE</span>, and one raw <span class="ink-mono">UPDATE</span> that forgets to touch <span class="ink-mono">updated_at</span>. Then count both sides.</p>
-    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:680px;">
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:680px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/poll_sync.py --audit</span></div>
       <div class="code-body"><span class="cm">source (postgres)   target (duckdb)   delta</span>
 rows      <span class="g">1,000,000</span>         <span class="r">999,996</span>        <span class="r">-4</span>
@@ -614,9 +623,9 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
         </div>
       </div>
       <div class="col">
-        <div class="col-label" style="color:var(--accent);">terminal 2, the slot</div>
+        <div class="col-label" style="color:var(--accent);">terminal 2, peek the slot</div>
         <div class="code-block" style="flex:unset;">
-          <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">wal2json events</span></div>
+          <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">pg_logical_slot_peek_changes() &rarr; wal2json</span></div>
           <div class="code-body"><span class="fn">{</span><span class="s">"action"</span>:<span class="s">"U"</span>,<span class="s">"table"</span>:<span class="s">"orders"</span>,
  <span class="s">"identity"</span>:<span class="fn">{</span><span class="s">"id"</span>:<span class="g">42</span><span class="fn">}</span>,...<span class="fn">}</span>
 <span class="fn">{</span><span class="s">"action"</span>:<span class="s">"D"</span>,<span class="s">"table"</span>:<span class="s">"orders"</span>,
@@ -662,22 +671,23 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker reveal">Phase 3 &middot; the main loop</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The watermark, <em>handed to you.</em></h2>
-    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">In Lesson 4 you computed a watermark to know what was already loaded. Here Postgres keeps it for you: the <span class="term">LSN</span>. After you durably apply a change, you <span class="ink-mono">send_feedback</span> with its LSN, and the slot advances.</p>
-    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:740px;">
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">In Lesson 4 you computed a watermark to know what was already loaded. Here Postgres keeps it for you: <span class="ink-mono">confirmed_flush_lsn</span>. The loop is three verbs: <strong>peek</strong> at pending changes (advances nothing), <strong>apply</strong> them, and only then <strong>advance</strong> the slot.</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">cdc_consumer.py, the loop</span></div>
-      <div class="code-body"><span class="k">for</span> msg <span class="k">in</span> stream:
-    ev = json.<span class="fn">loads</span>(msg.payload)
-    sink.<span class="fn">apply</span>(ev)                         <span class="cm"># 1. write it</span>
-    cur.<span class="fn">send_feedback</span>(flush_lsn=msg.lsn)   <span class="cm"># 2. THEN confirm</span>
-<span class="cm"># order matters: confirm before apply &rarr; data loss on crash</span></div>
+      <div class="code-body">rows = pg.<span class="fn">execute</span>(<span class="s">"SELECT lsn, data FROM pg_logical_slot_peek_changes(</span>
+                  <span class="s">'orders_slot', NULL, 5000, ...)"</span>)   <span class="cm"># 1. peek — advances nothing</span>
+<span class="k">for</span> lsn, data <span class="k">in</span> rows:
+    sink.<span class="fn">apply</span>(json.<span class="fn">loads</span>(data), lsn)               <span class="cm"># 2. write it</span>
+pg.<span class="fn">execute</span>(<span class="s">"SELECT pg_replication_slot_advance(</span>
+            <span class="s">'orders_slot', %s)"</span>, [last_commit_lsn])  <span class="cm"># 3. THEN confirm</span></div>
     </div>
     <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <span class="ctxt">Confirming the LSN tells Postgres &ldquo;recycle WAL up to here.&rdquo; Confirm <em>before</em> applying and a crash loses the change; <strong>never</strong> confirm and the slot retains WAL forever. Rule: <strong>apply, then confirm.</strong></span>
+      <span class="ctxt">Advancing tells Postgres &ldquo;recycle WAL up to here.&rdquo; Advance <em>before</em> applying and a crash loses the change; <strong>never</strong> advance and the slot retains WAL forever. And advance only to a <strong>commit marker&rsquo;s LSN</strong>, mid-transaction positions aren&rsquo;t safe points. Rule: <strong>apply, then confirm.</strong> Kafka makes you play this exact game again; there it&rsquo;s called <em>committing your offset</em> (Lesson&nbsp;6).</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
-  <div class="meta"><span>LSN FEEDBACK</span><span>apply &rarr; then confirm</span></div>
+  <div class="meta"><span>PEEK &middot; APPLY &middot; ADVANCE</span><span>apply &rarr; then confirm</span></div>
 </section>
 
 <!-- ─── 18 · LIVE: LAG UNDER LOAD ──────────────────────── -->
@@ -685,12 +695,12 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker reveal">Live &middot; keep up under load</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Run the L1 generator. Watch the lag.</h2>
-    <div class="reveal" style="display:flex;gap:clamp(1.2rem,4vw,3rem);flex-wrap:wrap;margin-top:clamp(0.6rem,1.5vh,1.1rem);">
+    <div class="reveal spoiler" style="display:flex;gap:clamp(1.2rem,4vw,3rem);flex-wrap:wrap;margin-top:clamp(0.6rem,1.5vh,1.1rem);">
       <div><div class="stat">1,000</div><div class="stat-label">inserts / sec</div></div>
       <div><div class="stat">256 KB</div><div class="stat-label">lag, holding steady</div></div>
       <div><div class="stat n" style="color:var(--ink);">~80 ms</div><div class="stat-label">source &rarr; DuckDB</div></div>
     </div>
-    <div class="code-block reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);flex:unset;max-width:720px;">
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.6rem,1.5vh,1rem);flex:unset;max-width:720px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/watch_lag.py</span></div>
       <div class="code-body"><span class="cm">slot         lag_bytes   applied/s   verdict</span>
 orders_slot  <span class="g">262,144</span>     <span class="g">1,004</span>       <span class="n">keeping pace</span>
@@ -768,23 +778,24 @@ orders_slot  <span class="g">262,144</span>     <span class="g">1,011</span>    
 <section class="slide" id="s22">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
     <div class="section-marker reveal">Break 01 &middot; the fix</div>
-    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Snapshot at the LSN. Stream after it.</h2>
-    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Create the slot first, it pins a <span class="ink-mono">consistent_point</span>. Bulk-copy the table inside a <span class="ink-mono">REPEATABLE READ</span> snapshot consistent with that LSN. Then start the stream from the same LSN. No row falls between the two.</p>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Snapshot the past. Replay seals the seam.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Create the slot <em>first</em>, so the stream is already buffering everything that happens next. Then bulk-copy the table, one <span class="ink-mono">SELECT</span>, one MVCC snapshot. The seam: a few changes land in <em>both</em> the copy and the stream. We don&rsquo;t fight that, the idempotent sink replays them into a no-op.</p>
     <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:740px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">snapshot.py</span></div>
-      <div class="code-body"><span class="cm"># 1. slot already created &rarr; consistent_point = 0/19A3B78</span>
-<span class="k">with</span> pg.<span class="fn">transaction</span>():
-    pg.<span class="fn">execute</span>(<span class="s">"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"</span>)
-    bulk_copy(<span class="s">"SELECT * FROM orders"</span>, into=duck)   <span class="cm"># the past</span>
-<span class="fn">start_stream</span>(from_lsn=<span class="s">"0/19A3B78"</span>)              <span class="cm"># the future, no gap</span></div>
+      <div class="code-body"><span class="cm"># 1. slot already exists &rarr; every change since is buffered for replay</span>
+duck.<span class="fn">execute</span>(<span class="s">"ATTACH 'postgres://...' AS pg (TYPE postgres)"</span>)
+duck.<span class="fn">execute</span>(<span class="s">"INSERT INTO orders SELECT ... FROM pg.orders"</span>)  <span class="cm"># the past</span>
+
+<span class="cm"># 2. drain the slot: overlapping events re-apply as delete+insert &rarr; no-op</span>
+<span class="v">$</span> uv run python src/cdc_consumer.py                           <span class="cm"># the future</span></div>
     </div>
     <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
-      <span class="ctxt">This is exactly what Debezium&rsquo;s &ldquo;initial snapshot&rdquo; phase does, and why it can run for hours on a large table. Now you know <em>what</em> it&rsquo;s doing and <em>why</em> it&rsquo;s slow.</span>
+      <span class="ctxt">Debezium&rsquo;s &ldquo;initial snapshot&rdquo; phase gets an <em>exact</em>, no-overlap stitch by exporting the slot&rsquo;s snapshot over the replication protocol. We trade that ceremony for plain SQL <strong>plus idempotency</strong>, and converge to the same mirror. Either way the snapshot can run for hours on a big table; now you know what it&rsquo;s doing and why.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
-  <div class="meta"><span>SNAPSHOT + STREAM</span><span>consistent_point stitches them</span></div>
+  <div class="meta"><span>SNAPSHOT, THEN DRAIN</span><span>idempotency absorbs the seam</span></div>
 </section>
 
 <!-- ─── 23 · LIVE: CRASH & REPLAY ──────────────────────── -->
@@ -793,7 +804,7 @@ orders_slot  <span class="g">262,144</span>     <span class="g">1,011</span>    
     <div class="section-marker reveal">Break 02 &middot; live</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Kill it mid-stream. Restart. Same state.</h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:660px;"><span class="ink-mono">Ctrl-C</span> the consumer while the generator runs. Wait. Restart. It resumes from the last confirmed LSN, replays a few events, and the checksum holds.</p>
-    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/cdc_consumer.py   # after a kill</span></div>
       <div class="code-body"><span class="cm">applied 50,123 events ... ^C  (killed)</span>
 <span class="cm">restart -&gt; resuming from confirmed LSN 0/3A2F108</span>
@@ -803,7 +814,7 @@ checksum <span class="n">b04a42b3c882</span> == pre-crash <span class="n">b04a42
     </div>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.7 3M3 4v4h4"/></svg>
-      <span class="ctxt">CDC is <span class="term">at-least-once</span>, the default almost everywhere. You don&rsquo;t lose events; you may re-see a few. The idempotent sink from Part&nbsp;one is what makes that safe instead of corrupting.</span>
+      <span class="ctxt">CDC is <span class="term">at-least-once</span>, the default almost everywhere. You don&rsquo;t lose events; you may re-see a few. The idempotent sink from Part&nbsp;one is what makes that safe instead of corrupting. Getting to <em>exactly</em>-once end-to-end, when you can&rsquo;t lean on an idempotent sink, is the entire subject of Lesson&nbsp;8.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
@@ -830,16 +841,41 @@ checksum <span class="n">b04a42b3c882</span> == pre-crash <span class="n">b04a42
   <div class="meta"><span>SCHEMA EVOLUTION</span><span>the producer/consumer contract</span></div>
 </section>
 
+<!-- ─── 24b · LIVE: SCHEMA DRIFT, SILENT THEN LOUD ─────── -->
+<section class="slide" id="s24b">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Break 03 &middot; live</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Our consumer lies first. Then we make it <em>loud.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">Add the column upstream, update a row, and let the consumer run with <span class="ink-mono">--ignore-drift</span>: it applies the event and silently drops the new field. The same silent lie polling had, except this time <em>we</em> wrote it.</p>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/experiment_schema_drift.py</span></div>
+      <div class="code-body"><span class="cm">ACT 1 · --ignore-drift</span>   source row: notes=<span class="s">'gift wrap, fragile'</span>
+                       mirror row: <span class="r">column does not exist · NO ERROR RAISED</span>
+
+<span class="cm">ACT 2 · strict (default)</span>
+<span class="r">SCHEMA DRIFT — failing loud, on purpose.</span>
+source sent column(s) [<span class="s">'notes'</span>] the mirror doesn't have
+  <span class="n">slot NOT advanced — zero events lost.</span>  fix the mirror, rerun, it replays.</div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">Failing loud costs <strong>nothing</strong> here, and that&rsquo;s not luck: the slot only advances after apply, so the crash leaves the event waiting. <strong>Confirm-after-apply is what makes &ldquo;stop&rdquo; a safe answer to drift.</strong></span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>BREAK 03 &middot; LIVE</span><span>silent drop &rarr; loud stop</span></div>
+</section>
+
 <!-- ─── 25 · LIVE: DISK-FULL FROM ABANDONED SLOT ───────── -->
 <section class="slide" id="s25">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker reveal">Break 04 &middot; live</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">A forgotten slot is a <em>time bomb.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:680px;">Create a slot, never consume it, run the generator. Postgres can&rsquo;t recycle WAL the slot hasn&rsquo;t confirmed, so it piles up until the disk fills and writes stop.</p>
-    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/experiment_abandon_slot.py</span></div>
       <div class="code-body"><span class="cm">slot 'abandoned_slot' created, nothing is reading it</span>
-retained_wal   <span class="g">120 MB</span>  ...  <span class="g">480 MB</span>  ...  <span class="r">2,1 GB</span>
+retained_wal   <span class="g">120 MB</span>  ...  <span class="g">480 MB</span>  ...  <span class="r">2.1 GB</span>
 postgres: <span class="r">FATAL: could not write to WAL, no space left</span>
 <span class="cm">fix -&gt; SELECT pg_drop_replication_slot('abandoned_slot');</span></div>
     </div>
@@ -911,7 +947,7 @@ postgres: <span class="r">FATAL: could not write to WAL, no space left</span>
       <tbody>
         <tr><td>Create slot + consistent_point</td><td>Managed slot &amp; offset storage</td></tr>
         <tr><td><span class="ink-mono">snapshot.py</span> at the LSN</td><td>Initial snapshot phase</td></tr>
-        <tr><td><span class="ink-mono">send_feedback(lsn)</span></td><td>Offset commits to Kafka</td></tr>
+        <tr><td><span class="ink-mono">slot_advance(commit_lsn)</span></td><td>Offset commits to Kafka</td></tr>
         <tr><td>delete+insert idempotent sink</td><td>Idempotent / exactly-once delivery</td></tr>
         <tr><td>detect <span class="ink-mono">ALTER</span>, reconcile</td><td>Schema history topic + registry</td></tr>
         <tr class="hot"><td><span class="ink-mono">watch_lag.py</span></td><td>JMX lag metric you must alert on</td></tr>
@@ -1022,6 +1058,7 @@ postgres: <span class="r">FATAL: could not write to WAL, no space left</span>
 <span class="v">$</span> uv run python src/snapshot.py                 <span class="cm"># backfill the past</span>
 <span class="v">$</span> uv run python src/cdc_consumer.py &amp;            <span class="cm"># stream the future</span>
 <span class="v">$</span> uv run python src/watch_lag.py                <span class="cm"># prove it keeps pace</span>
+<span class="v">$</span> uv run python src/experiment_schema_drift.py  <span class="cm"># drift: silent lie vs fail loud</span>
 <span class="v">$</span> uv run python src/experiment_abandon_slot.py  <span class="cm"># watch the disk fill</span></div>
     </div>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
@@ -1087,7 +1124,7 @@ postgres: <span class="r">FATAL: could not write to WAL, no space left</span>
       <li><strong>wal2json must be present.</strong> Vanilla <span class="ink-mono">postgres:16</span> ships <span class="ink-mono">pgoutput</span> + <span class="ink-mono">test_decoding</span> only; our image bundles <span class="ink-mono">wal2json</span>. Swap to <span class="ink-mono">test_decoding</span> if you can&rsquo;t install it.</li>
       <li><strong><span class="ink-mono">wal_level=logical</span> needs a restart</strong> and bumped <span class="ink-mono">max_replication_slots</span> / <span class="ink-mono">max_wal_senders</span>. Already set in Compose.</li>
       <li><strong>One slot, one reader.</strong> Two consumers on the same slot will fight; give each its own slot (and double the WAL cost, the L6 motivation).</li>
-      <li><strong>Replication connections are special</strong>, open with <span class="ink-mono">replication=True</span> and <span class="ink-mono">autocommit=True</span>, not a normal cursor.</li>
+      <li><strong>Two ways to read a slot.</strong> Plain SQL, <span class="ink-mono">peek_changes</span> + <span class="ink-mono">slot_advance</span>, is what we use. The streaming replication protocol (<span class="ink-mono">replication=True</span>, <span class="ink-mono">send_feedback</span>) is what Debezium uses, same confirm-after-apply contract, more plumbing.</li>
       <li><strong>Drop slots you stop using.</strong> An idle slot keeps retaining WAL until it fills the disk.</li>
     </ul>
   </div>
@@ -1108,7 +1145,8 @@ postgres: <span class="r">FATAL: could not write to WAL, no space left</span>
         <tr><td><span class="ink-mono">cdc_consumer.py</span></td><td>Stream wal2json &rarr; idempotent DuckDB sink</td><td>15&ndash;17</td></tr>
         <tr><td><span class="ink-mono">snapshot.py</span></td><td>Backfill at consistent_point, then stream</td><td>22</td></tr>
         <tr><td><span class="ink-mono">watch_lag.py</span></td><td>Print slot lag_bytes under load</td><td>18&ndash;19</td></tr>
-        <tr><td><span class="ink-mono">experiment_abandon_slot.py</span></td><td>Disk-full from an unconsumed slot</td><td>25</td></tr>
+        <tr><td><span class="ink-mono">experiment_schema_drift.py</span></td><td>Drift: silent lie, then fail loud</td><td>24&ndash;25</td></tr>
+        <tr><td><span class="ink-mono">experiment_abandon_slot.py</span></td><td>Disk-full from an unconsumed slot</td><td>26</td></tr>
       </tbody>
     </table>
     <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
@@ -1146,7 +1184,9 @@ window.addEventListener('keydown',(e)=>{
   else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(current()-1);}
   else if(e.key==='Home'){e.preventDefault();go(0);}
   else if(e.key==='End'){e.preventDefault();go(slides.length-1);}
+  else if(e.key==='r'||e.key==='R'){slides[current()].querySelectorAll('.spoiler').forEach(s=>s.classList.add('revealed'));}
 });
+document.querySelectorAll('.spoiler').forEach(s=>s.addEventListener('click',()=>s.classList.add('revealed')));
 </script>
 
 </body>
