@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 6 · Event Streaming · Decouple the Stream</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LESSON 6 — "REDLINE MINIMAL" DESIGN SYSTEM  (shared with L4/L5)
+   Light, monochrome ink-on-paper + a single signal red (#d23a26).
+   Switzer (grotesque) + Space Mono. Key terms = mono w/ red underline.
+   ============================================================ */
+:root{
+  --paper:#f7f6f2; --paper2:#eeede6; --ink:#1a1915; --ink-soft:#46443c; --muted:#928f84;
+  --rule:#e4e2da; --rule-strong:#ccc9be;
+  --accent:#d23a26; --accent-soft:rgba(210,58,38,0.10); --accent-dim:rgba(210,58,38,0.18);
+  --code-bg:#201e18;
+  --sans:'Switzer',-apple-system,sans-serif; --mono:'Space Mono',ui-monospace,monospace;
+  --dur:0.7s; --ease:cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+html,body{height:100%;overflow-x:hidden;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ---- slide shell ---- */
+.slide{
+  width:100vw;height:100vh;height:100dvh;overflow:hidden;position:relative;scroll-snap-align:start;
+  display:flex;flex-direction:column;padding:clamp(1.3rem,3.5vw,3.3rem) clamp(1.4rem,5vw,4.5rem);
+}
+.slide-content{flex:1;display:flex;flex-direction:column;justify-content:center;max-height:100%;min-height:0;overflow:hidden}
+.slide.invert{background:var(--ink);color:var(--paper)}
+.slide.invert .sub{color:#b9b5a8}
+.slide.invert h1,.slide.invert h2,.slide.invert h3,.slide.invert .big-q{color:var(--paper)}
+.slide.invert .kicker,.slide.invert .crumb{color:#9a968b}
+.slide.invert .meta{color:#7c796f}
+.slide.invert hr.rule{border-color:rgba(255,255,255,0.10)}
+.slide.invert .callout.note{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.2)}
+.slide.invert .bullets li{color:#e7e3d8}
+.slide.invert .dtable td{color:#e7e3d8}.slide.invert .dtable th{color:#9a968b}
+.slide.invert .dtable th,.slide.invert .dtable td{border-color:rgba(255,255,255,0.12)}
+/* archviz on dark slides */
+.slide.invert .arch-node{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.2)}
+.slide.invert .arch-node .an-title{color:var(--paper)}
+.slide.invert .arch-node .arch-line{color:#e7e3d8}
+.slide.invert .arch-node .arch-row{color:#e7e3d8}
+.slide.invert .arch-node .arch-foot{color:#9a968b}
+.slide.invert .arch-node .an-rule{border-color:rgba(255,255,255,0.18)}
+.slide.invert .arch-node.tgt{background:var(--accent-soft);border-color:var(--accent)}
+.slide.invert .arch-node.tgt .an-title{color:var(--accent)}
+.slide.invert .arch-node.tgt .arch-line{color:var(--paper)}
+
+/* ---- nav: slash breadcrumb (course progress) ---- */
+.crumbs{display:flex;flex-wrap:wrap;font-family:var(--mono);font-size:clamp(0.55rem,0.92vw,0.7rem);color:var(--muted);letter-spacing:0.03em}
+.crumb{padding-right:0.8em;margin-right:0.8em;border-right:1px solid var(--rule-strong)}
+.crumb:last-child{border-right:0;margin-right:0;padding-right:0}
+.crumb.on{color:var(--ink);font-weight:700;position:relative}
+.crumb.on::after{content:'';position:absolute;left:0;right:0.8em;bottom:-0.45em;height:2px;background:var(--accent)}
+
+/* ---- type ---- */
+.kicker{font-family:var(--mono);font-size:clamp(0.6rem,1vw,0.74rem);letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)}
+.eyebrow{font-family:var(--mono);font-size:clamp(0.58rem,0.95vw,0.72rem);letter-spacing:0.12em;text-transform:uppercase;color:var(--accent)}
+.section-marker{display:inline-flex;align-items:center;gap:0.4rem;font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);
+  font-weight:700;text-transform:uppercase;letter-spacing:0.12em;padding-bottom:0.35rem;border-bottom:2px solid var(--accent);color:var(--accent);align-self:flex-start}
+h1{font-family:var(--sans);font-weight:600;line-height:0.98;letter-spacing:-0.025em;font-size:clamp(2.5rem,7.5vw,5.6rem);color:var(--ink)}
+h2{font-family:var(--sans);font-weight:600;line-height:1.05;letter-spacing:-0.015em;font-size:clamp(1.55rem,4.2vw,2.9rem);color:var(--ink)}
+h2 em,h1 em{font-style:italic;font-weight:500;color:var(--accent)}
+h3{font-family:var(--sans);font-weight:600;font-size:clamp(1rem,2.2vw,1.5rem);letter-spacing:-0.01em}
+.sub{font-family:var(--sans);font-weight:400;font-size:clamp(0.84rem,1.5vw,1.08rem);color:var(--ink-soft);max-width:640px;line-height:1.6}
+.lede{font-family:var(--sans);font-weight:500;font-size:clamp(0.95rem,1.8vw,1.3rem);color:var(--ink);line-height:1.4}
+.label{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted)}
+
+/* ---- signature: key term = mono + red underline (NOT a pill) ---- */
+.term{font-family:var(--mono);font-size:0.84em;color:var(--ink);border-bottom:2px solid var(--accent);padding-bottom:0.02em;white-space:nowrap}
+.slide.invert .term{color:var(--paper)}
+.term.danger{color:var(--accent)}
+.hl{background:var(--accent-soft);color:var(--accent);padding:0.04em 0.32em;border-radius:2px;font-weight:600}
+.ink-mono{font-family:var(--mono);font-size:0.88em;background:rgba(0,0,0,0.06);padding:0.05em 0.35em;border-radius:2px}
+.slide.invert .ink-mono{background:rgba(255,255,255,0.1)}
+
+/* ---- bullets ---- */
+.bullets{list-style:none;display:flex;flex-direction:column;gap:clamp(0.3rem,0.7vh,0.5rem)}
+.bullets li{font-family:var(--sans);font-size:clamp(0.74rem,1.25vw,0.94rem);color:var(--ink);line-height:1.45;padding-left:1.35em;text-indent:-1.35em}
+.bullets li::before{content:'\2014';color:var(--accent);font-weight:700;margin-right:0.55em}
+.bullets li strong{font-weight:600}
+
+/* ---- two column ---- */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1rem,2.5vw,2rem);flex:1;min-height:0}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:clamp(0.3rem,0.7vh,0.55rem);min-height:0}
+.col-label{font-family:var(--mono);font-size:clamp(0.55rem,0.85vw,0.68rem);font-weight:700;text-transform:uppercase;letter-spacing:0.06em}
+
+/* ---- big question ---- */
+.big-q{font-family:var(--sans);font-weight:600;font-size:clamp(1.6rem,4.4vw,3.2rem);line-height:1.12;letter-spacing:-0.02em;color:var(--ink);max-width:20ch}
+.big-q .term{font-size:0.62em;vertical-align:0.12em}
+
+/* ---- live change-stream rail (shared with L5; here = partitions) ---- */
+.stream{margin-top:clamp(1rem,2.6vh,1.8rem);max-width:620px}
+.stream-rail{display:flex;align-items:center;gap:clamp(0.5rem,1.4vw,1rem);margin-bottom:clamp(0.45rem,1.1vh,0.7rem)}
+.stream-rail:last-of-type{margin-bottom:0}
+.stream .node{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);font-weight:700;letter-spacing:0.03em;
+  color:var(--accent);border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:0.3em 0.6em;white-space:nowrap}
+.stream .node.src{position:relative}
+.stream .node.src::after{content:'';position:absolute;inset:-4px;border:1.5px solid var(--accent);border-radius:7px;opacity:0;animation:srcPulse 2.4s var(--ease) infinite}
+.stream .rail{position:relative;flex:1;height:2px;background:var(--accent)}
+.stream .rail::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  border-left:7px solid var(--accent);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.stream .pkt{position:absolute;top:50%;left:0;width:clamp(15px,1.7vw,19px);height:clamp(15px,1.7vw,19px);
+  margin-left:calc(-0.5 * clamp(15px,1.7vw,19px));border-radius:4px;background:var(--accent);color:var(--paper);
+  font-family:var(--mono);font-weight:700;font-size:clamp(0.46rem,0.72vw,0.58rem);
+  display:flex;align-items:center;justify-content:center;opacity:0;animation:pktFlow 5.6s linear infinite}
+.stream .cap{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.68rem);color:var(--muted);margin-top:0.75em;letter-spacing:0.04em}
+
+/* ---- cover: faint scrolling topic log (the partitioned log as ambience) ---- */
+.wal-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.wal-bg .wal-col{position:absolute;top:0;left:0;right:0;padding-left:clamp(1.4rem,5vw,4.5rem);
+  font-family:var(--mono);font-size:clamp(0.62rem,1.05vw,0.82rem);white-space:nowrap;color:var(--ink);
+  opacity:0.06;animation:walScroll 32s linear infinite}
+.wal-bg .wal-col > span{display:block;margin-bottom:clamp(0.4rem,1vh,0.78rem)}
+.wal-bg .lsn{color:var(--accent)}.wal-bg .arr{color:var(--accent)}
+.wal-bg::before,.wal-bg::after{content:'';position:absolute;left:0;right:0;height:20%;z-index:1}
+.wal-bg::before{top:0;background:linear-gradient(var(--paper),transparent)}
+.wal-bg::after{bottom:0;background:linear-gradient(transparent,var(--paper))}
+
+/* ---- callout ---- */
+.callout{display:flex;gap:clamp(0.4rem,0.9vw,0.65rem);padding:clamp(0.4rem,0.9vh,0.7rem) clamp(0.6rem,1.2vw,1rem);
+  border-radius:4px;border-left:3px solid;flex-shrink:0}
+.callout .ico{flex-shrink:0;width:clamp(0.95rem,1.4vw,1.15rem);height:clamp(0.95rem,1.4vw,1.15rem);margin-top:0.05em}
+.callout .ctxt{font-family:var(--sans);font-size:clamp(0.66rem,1.1vw,0.85rem);line-height:1.5;color:var(--ink)}
+.slide.invert .callout .ctxt{color:#e7e3d8}
+.callout.note{background:var(--paper2);border-color:var(--rule-strong)}
+.callout.danger{background:var(--accent-soft);border-color:var(--accent)}
+.callout.proof{background:var(--paper2);border-color:var(--ink)}
+
+/* ---- opencode AI prompt (terminal-style box) ---- */
+.prompt{background:var(--code-bg);border:1px solid rgba(255,255,255,0.08);border-left:3px solid var(--accent);border-radius:5px;padding:clamp(0.42rem,0.95vh,0.68rem) clamp(0.7rem,1.4vw,1.05rem)}
+.prompt .plabel{display:block;font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:0.3rem}
+.prompt .pcmd{display:block;font-family:var(--mono);font-size:clamp(0.6rem,1vw,0.78rem);color:#d8d4c8;line-height:1.7}
+.prompt .pcmd::before{content:'\276F  ';color:var(--accent);font-weight:700}
+
+/* ---- code ---- */
+.code-block{background:var(--code-bg);border:1px solid rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;min-height:0}
+.code-header{display:flex;align-items:center;gap:5px;padding:clamp(0.28rem,0.5vh,0.4rem) clamp(0.5rem,1vw,0.8rem);
+  background:rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.06)}
+.code-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.18)}
+.code-label{margin-left:auto;font-family:var(--mono);font-size:clamp(0.5rem,0.78vw,0.62rem);color:rgba(255,255,255,0.38)}
+.code-body{padding:clamp(0.5rem,1vh,0.85rem) clamp(0.7rem,1.3vw,1.1rem);font-family:var(--mono);
+  font-size:clamp(0.55rem,0.92vw,0.72rem);line-height:1.62;color:#d8d4c8;white-space:pre;overflow:hidden;text-align:left}
+.c{color:#76726a;font-style:italic}.k{color:#8fb3c7}.s{color:#c7a06a}.fn{color:#e6e1d4}
+.v{color:#b9c4cb}.g{color:#c7a06a}.n{color:#9ec1a8}.r{color:#e8604c;font-weight:700}.cm{color:#76726a}
+
+/* ---- ascii architecture ---- */
+.arch{font-family:var(--mono);font-size:clamp(0.5rem,0.85vw,0.68rem);color:var(--ink-soft);line-height:1.5;white-space:pre;
+  background:var(--paper2);border:1px solid var(--rule);border-radius:5px;padding:clamp(0.7rem,1.4vh,1.1rem) clamp(0.9rem,1.6vw,1.3rem);overflow:hidden}
+
+/* ---- HTML architecture diagram ---- */
+.archviz{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:clamp(0.6rem,2vw,1.7rem);
+  width:100%;max-width:900px;margin:0 auto}
+.arch-node{min-width:0;border:1.5px solid var(--rule-strong);border-radius:8px;background:var(--paper2);
+  padding:clamp(0.55rem,1.3vh,0.95rem) clamp(0.7rem,1.5vw,1.15rem);display:flex;flex-direction:column;gap:0.3rem}
+.arch-node.tgt{border-color:var(--accent);background:var(--accent-soft)}
+.an-title{font-family:var(--mono);font-weight:700;font-size:clamp(0.56rem,0.95vw,0.74rem);letter-spacing:0.03em;text-align:center;color:var(--ink)}
+.arch-node.tgt .an-title{color:var(--accent)}
+.an-rule{border:0;border-top:1px solid var(--rule-strong);opacity:.6;margin:0.12rem 0 0.22rem}
+.arch-row{display:flex;justify-content:space-between;gap:0.8rem;font-family:var(--mono);font-size:clamp(0.56rem,0.98vw,0.74rem);color:var(--ink)}
+.arch-row .num{color:var(--muted);white-space:nowrap}
+.arch-line{font-family:var(--mono);font-size:clamp(0.56rem,0.98vw,0.74rem);color:var(--ink);line-height:1.5}
+.arch-foot{margin-top:0.32rem;font-family:var(--mono);font-size:clamp(0.5rem,0.84vw,0.64rem);font-style:italic;color:var(--muted);text-align:center}
+.arch-conn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;padding:0 clamp(0.1rem,0.8vw,0.5rem)}
+.ac-top{font-family:var(--mono);font-size:clamp(0.5rem,0.85vw,0.66rem);color:var(--accent);white-space:nowrap;letter-spacing:0.02em}
+.ac-arrow{align-self:stretch;height:2px;background:var(--accent);position:relative;min-width:clamp(64px,8vw,110px)}
+.ac-arrow::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  border-left:7px solid var(--accent);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.ac-sub{font-family:var(--mono);font-size:clamp(0.46rem,0.78vw,0.6rem);color:var(--muted);white-space:nowrap}
+@media(max-width:680px){
+  .archviz{grid-template-columns:1fr;gap:0.6rem}
+  .ac-arrow{min-width:0;width:2px;height:26px;align-self:center}
+  .ac-arrow::after{right:auto;left:50%;top:auto;bottom:-1px;transform:translateX(-50%);
+    border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--accent);border-bottom:0}
+}
+
+/* ---- table ---- */
+.dtable{width:100%;border-collapse:collapse}
+.dtable th,.dtable td{font-family:var(--sans);font-size:clamp(0.62rem,1.05vw,0.84rem);
+  padding:clamp(0.22rem,0.5vh,0.42rem) clamp(0.4rem,0.9vw,0.75rem);text-align:left;border-bottom:1px solid var(--rule)}
+.dtable th{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:clamp(0.5rem,0.78vw,0.62rem);color:var(--muted)}
+.dtable td.num,.dtable th.num{font-family:var(--mono);text-align:right}
+.dtable tr:last-child td{border-bottom:0}
+.dtable .hot{color:var(--accent);font-weight:600}
+
+/* ---- big stat ---- */
+.stat{font-family:var(--mono);font-weight:700;font-size:clamp(1.5rem,3.6vw,2.7rem);line-height:1;color:var(--ink)}
+.stat.red{color:var(--accent)}
+.stat-label{font-family:var(--mono);font-size:clamp(0.55rem,0.85vw,0.68rem);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+
+/* ---- footer meta ---- */
+.meta{display:flex;justify-content:space-between;align-items:center;gap:1rem;font-family:var(--mono);
+  font-size:clamp(0.5rem,0.82vw,0.64rem);color:var(--muted);letter-spacing:0.03em}
+.meta span:nth-child(2){text-align:right;opacity:0.8}
+hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
+
+/* ---- reveal animation ---- */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.slide.visible .reveal{opacity:1;transform:none}
+.slide.visible .reveal:nth-child(1){transition-delay:.05s}
+.slide.visible .reveal:nth-child(2){transition-delay:.12s}
+.slide.visible .reveal:nth-child(3){transition-delay:.19s}
+.slide.visible .reveal:nth-child(4){transition-delay:.26s}
+.slide.visible .reveal:nth-child(5){transition-delay:.33s}
+.slide.visible .reveal:nth-child(6){transition-delay:.40s}
+.slide.visible .reveal:nth-child(7){transition-delay:.47s}
+
+/* ---- chrome: progress bar ---- */
+.progress-bar{position:fixed;bottom:0;left:0;height:2px;background:var(--accent);z-index:200;width:0;transition:width .35s ease}
+.kbd-hint{position:fixed;bottom:clamp(0.5rem,1.2vh,0.9rem);left:50%;transform:translateX(-50%);font-family:var(--mono);
+  font-size:clamp(0.42rem,0.65vw,0.52rem);color:var(--muted);opacity:0.5;z-index:200}
+@media(max-height:600px){.kbd-hint{display:none}}
+@media (prefers-reduced-motion:reduce){.reveal{transition-duration:.2s}html{scroll-behavior:auto}}
+
+/* ---- spoiler: demo results stay blurred until the room predicts ---- */
+.spoiler{position:relative;cursor:pointer}
+.spoiler>*{filter:blur(9px);transition:filter .5s var(--ease)}
+.spoiler::after{content:'predict first \00b7 click or press R';position:absolute;inset:0;z-index:2;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+  font-size:clamp(0.6rem,1vw,0.78rem);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent)}
+.spoiler.revealed>*{filter:none}
+.spoiler.revealed::after{display:none}
+
+/* ---- title (slide 1) opening animation + shared stream motion ---- */
+@keyframes titleRise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes drawUnderline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes walScroll{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+@keyframes pktFlow{
+  0%{left:0;opacity:0;transform:translateY(-50%) scale(.4)}
+  9%{opacity:1;transform:translateY(-50%) scale(1)}
+  88%{opacity:1;transform:translateY(-50%) scale(1)}
+  100%{left:100%;opacity:0;transform:translateY(-50%) scale(.4)}
+}
+@keyframes srcPulse{0%{opacity:.55;transform:scale(1)}70%,100%{opacity:0;transform:scale(1.55)}}
+#s1 .wal-bg,#s1 .crumbs,#s1 .slide-content,#s1 hr.rule,#s1 .meta{position:relative}
+#s1 .crumbs,#s1 .slide-content,#s1 hr.rule,#s1 .meta{z-index:1}
+#s1 .reveal{opacity:0;animation:titleRise .85s var(--ease) forwards}
+#s1 .crumbs.reveal{animation-delay:.05s}
+#s1 .eyebrow.reveal{animation-delay:.25s}
+#s1 h1.reveal{animation-delay:.4s}
+#s1 .sub.reveal{animation-delay:.7s}
+#s1 .stream.reveal{animation-delay:1.05s}
+#s1 .t-data{position:relative;white-space:nowrap}
+#s1 .t-data::after{content:'';position:absolute;left:0;right:-.04em;bottom:.04em;height:.085em;background:var(--accent);transform:scaleX(0);transform-origin:left;animation:drawUnderline .7s var(--ease) 1.2s forwards}
+@media (prefers-reduced-motion:reduce){
+  #s1 .reveal,.wal-bg .wal-col,.stream .pkt,.stream .node.src::after,#s1 .t-data::after{animation:none}
+  #s1 .reveal{opacity:1;transform:none}#s1 .t-data::after{transform:scaleX(1)}
+  .stream .pkt{opacity:1;left:50%}
+}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<span class="kbd-hint">&uarr; &darr; navigate &middot; R reveal</span>
+
+<!-- ════════════════════════════════════════════════════════════
+     LESSON 6 · EVENT STREAMING · "DECOUPLE THE STREAM"
+     ════════════════════════════════════════════════════════════ -->
+
+<!-- ─── 01 · TITLE ─────────────────────────────────────── -->
+<section class="slide visible" id="s1">
+  <div class="wal-bg" aria-hidden="true">
+    <div class="wal-col">
+      <span>orders-2  <span class="lsn">offset 014211</span>  key=42  {"status":"shipped"}</span>
+      <span>orders-0  <span class="lsn">offset 009854</span>  key=77  {"status":"created"}</span>
+      <span>orders-1  <span class="lsn">offset 011730</span>  key=13  {"status":"paid"}</span>
+      <span>orders-2  <span class="lsn">offset 014212</span>  key=42  {"status":"delivered"}</span>
+      <span>orders-0  <span class="lsn">offset 009855</span>  key=77  {"status":"paid"}</span>
+      <span>orders-1  <span class="lsn">offset 011731</span>  key=88  {"status":"created"}</span>
+      <span>orders-0  <span class="lsn">offset 009856</span>  key=51  {"status":"created"}</span>
+      <span>orders-2  <span class="lsn">offset 014213</span>  key=42  {"status":"returned"}</span>
+      <span>orders-1  <span class="lsn">offset 011732</span>  key=13  {"status":"cancelled"}</span>
+      <span>orders-0  <span class="lsn">offset 009857</span>  key=77  {"status":"shipped"}</span>
+      <span>orders-1  <span class="lsn">offset 011733</span>  key=88  {"status":"paid"}</span>
+      <span>orders-2  <span class="lsn">offset 014214</span>  key=29  {"status":"created"}</span>
+      <span>orders-2  <span class="lsn">offset 014211</span>  key=42  {"status":"shipped"}</span>
+      <span>orders-0  <span class="lsn">offset 009854</span>  key=77  {"status":"created"}</span>
+      <span>orders-1  <span class="lsn">offset 011730</span>  key=13  {"status":"paid"}</span>
+      <span>orders-2  <span class="lsn">offset 014212</span>  key=42  {"status":"delivered"}</span>
+      <span>orders-0  <span class="lsn">offset 009855</span>  key=77  {"status":"paid"}</span>
+      <span>orders-1  <span class="lsn">offset 011731</span>  key=88  {"status":"created"}</span>
+      <span>orders-0  <span class="lsn">offset 009856</span>  key=51  {"status":"created"}</span>
+      <span>orders-2  <span class="lsn">offset 014213</span>  key=42  {"status":"returned"}</span>
+      <span>orders-1  <span class="lsn">offset 011732</span>  key=13  {"status":"cancelled"}</span>
+      <span>orders-0  <span class="lsn">offset 009857</span>  key=77  {"status":"shipped"}</span>
+      <span>orders-1  <span class="lsn">offset 011733</span>  key=88  {"status":"paid"}</span>
+      <span>orders-2  <span class="lsn">offset 014214</span>  key=29  {"status":"created"}</span>
+    </div>
+  </div>
+  <div class="crumbs reveal">
+    <span class="crumb">04 Batch ETL</span>
+    <span class="crumb">05 CDC</span>
+    <span class="crumb on">06 Kafka</span>
+    <span class="crumb">07 Streaming</span>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow reveal" style="margin-bottom:0.8rem;">The log, made a service</div>
+    <h1 class="reveal">Decouple the <span class="t-data">stream</span>.</h1>
+    <p class="sub reveal" style="margin-top:clamp(0.9rem,2vh,1.4rem);">CDC gave you a change stream, welded to Postgres: one slot per reader, and the slowest reader holds the source hostage. Kafka takes the idea you&rsquo;ve been using since Lesson&nbsp;1, the append-only log, and makes <em>the log itself</em> the product: durable, partitioned, shared.</p>
+    <div class="stream reveal">
+      <div class="stream-rail">
+        <span class="node src">P0</span>
+        <span class="rail"><span class="pkt" style="animation-delay:0s">77</span><span class="pkt" style="animation-delay:-2.8s">51</span></span>
+        <span class="node dst">offset 9857</span>
+      </div>
+      <div class="stream-rail">
+        <span class="node src">P1</span>
+        <span class="rail"><span class="pkt" style="animation-delay:-1.4s">13</span><span class="pkt" style="animation-delay:-4.2s">88</span></span>
+        <span class="node dst">offset 11733</span>
+      </div>
+      <div class="stream-rail">
+        <span class="node src">P2</span>
+        <span class="rail"><span class="pkt" style="animation-delay:-2.1s">42</span><span class="pkt" style="animation-delay:-4.9s">42</span></span>
+        <span class="node dst">offset 14214</span>
+      </div>
+      <div class="cap">same key, same partition, same order &mdash; everything else runs in parallel</div>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>REAL-TIME DATA PROCESSING</span><span>Kafka (KRaft) &middot; confluent-kafka &middot; 3 brokers</span></div>
+</section>
+
+<!-- ─── 02 · RECAP L5 → THE BRIDGE ─────────────────────── -->
+<section class="slide" id="s2">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Recap &middot; lesson 5</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Real-time. Correct. <em>Welded to the source.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:680px;">The CDC mirror works: sub-second, deletes included, replay-safe. But look at what it costs the <em>source</em> the moment anything else wants the stream:</p>
+    <div class="reveal" style="display:flex;gap:clamp(1.2rem,4vw,3rem);flex-wrap:wrap;margin-top:clamp(0.7rem,1.8vh,1.2rem);">
+      <div><div class="stat">1 slot</div><div class="stat-label">per consumer, each decodes WAL</div></div>
+      <div><div class="stat red">&infin; WAL</div><div class="stat-label">retained by the slowest reader</div></div>
+      <div><div class="stat">0</div><div class="stat-label">consumers can share a slot</div></div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.7rem,1.6vh,1.1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">You watched a forgotten slot eat the disk last week. Now imagine five teams each wanting the stream &mdash; five slots, five WAL decodes, five ways to sink production. <strong>The OLTP database cannot be your buffer.</strong></span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>THE BRIDGE</span><span>one source, many readers &rarr; ???</span></div>
+</section>
+
+<!-- ─── 03 · THE IDEA: A LOG IN THE MIDDLE ─────────────── -->
+<section class="slide" id="s3">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">The idea</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">A log in the <em>middle.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Put a durable, replicated, append-only log between producers and consumers. Producers append and walk away. Each consumer keeps its <em>own</em> position and reads at its own pace. A slow reader inconveniences nobody, not the source, not the other readers.</p>
+    <div class="archviz reveal" style="margin-top:clamp(0.7rem,1.8vh,1.2rem);">
+      <div class="arch-node"><div class="an-title">PRODUCERS</div><hr class="an-rule"><div class="arch-line">CDC (Debezium)</div><div class="arch-line">apps, services</div><div class="arch-foot">append &amp; forget</div></div>
+      <div class="arch-conn"><div class="ac-top">append</div><div class="ac-arrow"></div><div class="ac-sub">sequential, durable</div></div>
+      <div class="arch-node tgt"><div class="an-title">KAFKA &middot; the log</div><hr class="an-rule"><div class="arch-row"><span>retains by time</span><span class="num">days</span></div><div class="arch-row"><span>readers</span><span class="num">unlimited</span></div><div class="arch-foot">each consumer owns its offset</div></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">Retention is by <strong>time</strong> (or size), not by acknowledgment. Data isn&rsquo;t deleted because someone read it; it expires. That one design choice is what makes replay, fan-out, and late consumers all free.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>THE IDEA</span><span>producers &rarr; log &larr; consumers, decoupled</span></div>
+</section>
+
+<!-- ─── 04 · YOUR THIRD LOG (L1/L5 CALLBACK) ───────────── -->
+<section class="slide invert" id="s4">
+  <div class="slide-content" style="max-width:min(92vw,880px);margin:0 auto;">
+    <div class="section-marker reveal" style="border-color:var(--accent);">The pattern you already know</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">This is your <em>third</em> log.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);">
+      <thead><tr><th>Lesson</th><th>The log</th><th>What it bought you</th></tr></thead>
+      <tbody>
+        <tr><td><strong>L1</strong></td><td>Postgres WAL</td><td>Durability &mdash; replay the log, recover the database</td></tr>
+        <tr><td><strong>L5</strong></td><td>WAL + replication slot</td><td>A change stream &mdash; replay the log, mirror the database</td></tr>
+        <tr class="hot"><td><strong>L6</strong></td><td>Kafka</td><td>The log as a shared service &mdash; anyone can replay anything</td></tr>
+      </tbody>
+    </table>
+    <div class="callout proof reveal" style="margin-top:clamp(0.7rem,1.6vh,1.1rem);background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.4);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--paper)" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      <span class="ctxt" style="color:#e7e3d8;">Same data structure every time: ordered, append-only, position-addressed. The WAL was a log for one database. Kafka is a <strong>commit log as a distributed service</strong>. You haven&rsquo;t left the idea since Lesson 1 &mdash; it just keeps getting promoted.</span>
+    </div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>THE LINEAGE</span><span>WAL &rarr; slot &rarr; Kafka</span></div>
+</section>
+
+<!-- ─── 05 · NOT A MESSAGE QUEUE ───────────────────────── -->
+<section class="slide" id="s5">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; the distinction that matters</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Kafka is <em>not</em> a message queue.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th></th><th>Queue (RabbitMQ)</th><th>Log (Kafka)</th></tr></thead>
+      <tbody>
+        <tr><td>On read</td><td class="hot">deliver, then delete</td><td>nothing happens to the data</td></tr>
+        <tr><td>Who tracks position</td><td class="hot">the broker, per message</td><td>the consumer, one integer</td></tr>
+        <tr><td>Broker I/O</td><td class="hot">random (acks, requeues, indexes)</td><td>sequential append + sequential read</td></tr>
+        <tr><td>Second consumer</td><td class="hot">competes for messages</td><td>reads the same log, own pace</td></tr>
+        <tr><td>Replay yesterday</td><td class="hot">impossible, it&rsquo;s gone</td><td>seek to an older offset</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2h6c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>
+      <span class="ctxt">It&rsquo;s a different <strong>data structure</strong>, not a faster queue. Every property in this lesson, fan-out, replay, consumer lag, rebalancing, follows from &ldquo;append-only log + consumer-owned offsets.&rdquo; Get this and the rest is corollary.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>LOG &ne; QUEUE</span><span>read &ne; consume &middot; position &ne; ack</span></div>
+</section>
+
+<!-- ─── 06 · LOG-STRUCTURED STORAGE ────────────────────── -->
+<section class="slide" id="s6">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; why it&rsquo;s fast</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Append-only is the <em>physics</em> answer.</h2>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
+      <li><strong>Writes:</strong> append to the end of a segment file. No seeks, no rewrites. NVMe sustains 2&ndash;3&nbsp;GB/s sequential.</li>
+      <li><strong>Reads:</strong> consumers read forward from a position, also sequential. The OS page cache serves hot segments from RAM; Kafka manages no cache of its own.</li>
+      <li><strong>No per-consumer state on the broker.</strong> It appends and serves ranges. All the bookkeeping a queue does per message simply doesn&rsquo;t exist.</li>
+    </ul>
+    <div class="callout proof reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">You measured this physics in Lesson&nbsp;1: COPY&rsquo;s sequential batches beat row-by-row INSERT by 50&times; on the same disk. Kafka is that lesson built into an architecture &mdash; <strong>align the data structure with what disks are good at</strong>, and millions of messages per second on modest hardware stops being magic.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>STORAGE</span><span>sequential I/O + page cache</span></div>
+</section>
+
+<!-- ─── 07 · TOPICS, PARTITIONS, OFFSETS ───────────────── -->
+<section class="slide" id="s7">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; the unit of everything</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Topic, split into <em>partitions.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">A <span class="term">topic</span> is a named log. One log on one machine doesn&rsquo;t scale, so Kafka splits it into <span class="term">partitions</span>: independent logs on (potentially) different brokers. The <span class="term">offset</span> is just an integer, your position in one partition.</p>
+    <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Topic: orders  (3 partitions)
+
+P0:  [0][1][2][3][4][5][6]&rarr;          key="cust-77" &rarr; hash % 3 = 0
+P1:  [0][1][2][3][4]&rarr;                key="cust-42" &rarr; hash % 3 = 1
+P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:800px;">
+      <li><strong>Inside a partition, order is guaranteed.</strong> Offset 42 was written before 43. Always.</li>
+      <li><strong>Across partitions, there is no order.</strong> None. That&rsquo;s the price of parallelism.</li>
+      <li><strong>Same key &rarr; same partition</strong> &rarr; per-key order. No key &rarr; sticky batches, near-uniform spread.</li>
+    </ul>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>TOPICS &middot; PARTITIONS</span><span>order inside, parallel across</span></div>
+</section>
+
+<!-- ─── 08 · KEYS ARE ARCHITECTURE ─────────────────────── -->
+<section class="slide" id="s8">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; the decision that bites</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The key is an <em>architectural</em> decision.</h2>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
+      <li>Key by <span class="ink-mono">customer_id</span>: all of a customer&rsquo;s events stay ordered, but a whale customer concentrates load on one partition.</li>
+      <li>Key by <span class="ink-mono">order_id</span>: per-order lifecycle stays ordered; a customer&rsquo;s orders may interleave across partitions.</li>
+      <li>Need <strong>total</strong> order across everything? One partition. One broker&rsquo;s throughput. That ceiling is a law, not a config knob.</li>
+    </ul>
+    <div class="callout danger reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">You&rsquo;ve met this twice: the <strong>hot row</strong> that collapsed Postgres in L1, and the <strong>shard key</strong> that decided everything in L3. A hot key makes a hot partition, same disease, new organ. Choose keys the way you chose shard keys: by how the load distributes, not by what&rsquo;s convenient.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>KEYS</span><span>hot key = hot partition</span></div>
+</section>
+
+<!-- ─── 09 · CONSUMER GROUPS ───────────────────────────── -->
+<section class="slide" id="s9">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; how reading scales</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Consumer groups divide the partitions.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">A <span class="term">consumer group</span> is a team reading one topic together. Kafka gives each partition to exactly <strong>one</strong> consumer in the group. Different groups are invisible to each other, each gets the whole stream.</p>
+    <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">group "order-processor"          6 partitions
+
+2 consumers:   A &rarr; P0 P1 P2        B &rarr; P3 P4 P5
+3 consumers:   A &rarr; P0 P1   B &rarr; P2 P3   C &rarr; P4 P5
+7 consumers:   six work, one sits idle  &larr; the hard ceiling</div>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt"><strong>Parallelism = partition count.</strong> You choose it at topic creation, and changing it later reshuffles keys and triggers rebalances. This is the capacity-planning decision of Kafka, make it with headroom.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>CONSUMER GROUPS</span><span>max consumers = partitions</span></div>
+</section>
+
+<!-- ─── 10 · OFFSETS = THE SAME RULE, THIRD TIME ───────── -->
+<section class="slide" id="s10">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; offset commits</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The same rule. <em>Third time.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A consumer periodically commits &ldquo;I&rsquo;ve processed up to offset X&rdquo; (to an internal topic, <span class="ink-mono">__consumer_offsets</span>). On restart it resumes from there. You have built this watermark twice already, and the rule hasn&rsquo;t changed:</p>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:820px;">
+      <thead><tr><th>Lesson</th><th>The watermark</th><th>The rule</th></tr></thead>
+      <tbody>
+        <tr><td>L4 batch</td><td><span class="ink-mono">pipeline_metadata</span> table</td><td>record &ldquo;loaded&rdquo; in the same txn as the load</td></tr>
+        <tr><td>L5 CDC</td><td><span class="ink-mono">confirmed_flush_lsn</span></td><td>apply, <em>then</em> advance the slot</td></tr>
+        <tr class="hot"><td>L6 Kafka</td><td>committed offset</td><td>process, <em>then</em> commit the offset</td></tr>
+      </tbody>
+    </table>
+    <div class="callout danger reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">Commit <em>before</em> processing &rarr; crash loses messages (<strong>at-most-once</strong>). Commit <em>after</em> &rarr; crash replays a few (<strong>at-least-once</strong>, harmless if the sink is idempotent &mdash; your L5 move). The default <span class="ink-mono">enable.auto.commit=true</span> commits on a 5-second timer, <em>uncorrelated with your processing</em>: it can do either. We turn it off all lesson.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>OFFSETS</span><span>process &rarr; then commit</span></div>
+</section>
+
+<!-- ─── 11 · REBALANCING ───────────────────────────────── -->
+<section class="slide" id="s11">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; the stop-the-world event</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Rebalancing: partitions <em>move.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A consumer joins, crashes, or just polls too slowly &mdash; and the group coordinator redistributes partitions. Two callbacks bracket the move, and one of them carries all the risk:</p>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:800px;">
+      <li><span class="ink-mono">on_revoke</span> &mdash; partitions are about to be taken. <strong>Your last chance to commit in-flight work.</strong> Skip it, and the next owner reprocesses everything since your last commit.</li>
+      <li><span class="ink-mono">on_assign</span> &mdash; new partitions arrive; initialize their state.</li>
+      <li><strong>Cooperative-sticky</strong> (the modern strategy) moves only the partitions that must move; the rest keep flowing. The old eager protocol froze the whole group.</li>
+    </ul>
+    <div class="callout danger reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">A botched <span class="ink-mono">on_revoke</span> is the single most common source of duplicates in real Kafka systems &mdash; and it&rsquo;s exactly what your take-home is graded on. We&rsquo;ll trigger one live in Part&nbsp;two.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>REBALANCE</span><span>on_revoke = commit or duplicate</span></div>
+</section>
+
+<!-- ─── 12 · EXACTLY-ONCE, THREE LEVELS ────────────────── -->
+<section class="slide" id="s12">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; the words on the box</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">&ldquo;Exactly-once&rdquo; is <em>three</em> claims.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Level</th><th>Mechanism</th><th>What it protects</th></tr></thead>
+      <tbody>
+        <tr><td>1 &middot; Idempotent producer</td><td><span class="ink-mono">enable.idempotence</span>: broker dedupes by (producer, partition, sequence)</td><td>Retried sends don&rsquo;t duplicate in the log. On by default, free, never turn it off.</td></tr>
+        <tr><td>2 &middot; Transactional producer</td><td><span class="ink-mono">transactional.id</span> + begin/commit; 2PC inside Kafka</td><td>Writes to several partitions (incl. the offset commit) land atomically</td></tr>
+        <tr><td>3 &middot; Read isolation</td><td><span class="ink-mono">isolation.level=read_committed</span></td><td>Consumers never see records from aborted transactions</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2h6c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>
+      <span class="ctxt">End-to-end exactly-once needs all three at once &mdash; that&rsquo;s the Kafka Streams / Spark checkpoint model, and it&rsquo;s <strong>Lesson 8&rsquo;s whole subject</strong>. The pragmatic Python answer is the one you already live by: idempotent producer + at-least-once delivery + <strong>idempotent sink</strong>. Notice 2PC reappearing from L2 &mdash; coordination still costs; here you only pay it inside one system.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>EXACTLY-ONCE</span><span>three levels, or one idempotent sink</span></div>
+</section>
+
+<!-- ─── 13 · ISR vs RAFT ───────────────────────────────── -->
+<section class="slide" id="s13">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; replication</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">ISR: consensus with the <em>dial exposed.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Each partition has a leader and followers. The <span class="term">ISR</span> (in-sync replicas) is the set that&rsquo;s caught up. With <span class="ink-mono">acks=all</span>, a write is confirmed when every ISR member has it. The ISR <em>shrinks</em> when followers lag &mdash; and that&rsquo;s the difference from Raft:</p>
+    <div class="two-col reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;">
+      <div class="col">
+        <span class="col-label" style="color:var(--muted);">Raft (CockroachDB, L2)</span>
+        <ul class="bullets"><li>Quorum = fixed majority, always</li><li>2 of 3 nodes down &rarr; refuses writes</li><li>Consistency wins, no dial</li></ul>
+      </div>
+      <div class="col">
+        <span class="col-label" style="color:var(--accent);">ISR (Kafka)</span>
+        <ul class="bullets"><li>ISR is a dynamic set, can shrink to 1</li><li><span class="ink-mono">min.insync.replicas</span> is the floor you choose</li><li>Floor=1: available but a dead leader loses data</li></ul>
+      </div>
+    </div>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:640px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">the production durability triplet</span></div>
+      <div class="code-body">replication.factor   = <span class="g">3</span>   <span class="cm"># three copies</span>
+min.insync.replicas  = <span class="g">2</span>   <span class="cm"># refuse writes below leader+1</span>
+acks                 = <span class="s">all</span> <span class="cm"># producer waits for the ISR</span>
+<span class="cm"># lose 1 broker: fine · lose 2: writes refuse, on purpose</span></div>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ISR</span><span>availability dial vs Raft&rsquo;s fixed quorum</span></div>
+</section>
+
+<!-- ─── BUILD-IT-BY-HAND DIVIDER ───────────────────────── -->
+<section class="slide invert" id="s14">
+  <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,780px);margin:0 auto;">
+    <div class="kicker reveal" style="color:var(--accent);">Part one</div>
+    <h2 class="reveal" style="font-size:clamp(2rem,5.5vw,3.6rem);margin-top:0.6rem;">Write the loop by hand.</h2>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">No Spark, no Connect, no framework. A producer, a consumer, and <span class="ink-mono">confluent-kafka</span> &mdash; so that next week, when Spark hides the poll loop, you know exactly what it&rsquo;s hiding.</p>
+    <div class="stream reveal" style="margin:clamp(1rem,2.4vh,1.6rem) auto 0;max-width:min(80vw,460px);">
+      <div class="stream-rail">
+        <span class="node src">produce()</span>
+        <span class="rail">
+          <span class="pkt" style="animation-delay:0s">42</span>
+          <span class="pkt" style="animation-delay:-2.8s">77</span>
+        </span>
+        <span class="node dst">poll()</span>
+      </div>
+    </div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>BUILD IT BY HAND</span><span>confluent-kafka &middot; 3 brokers &middot; 6 partitions</span></div>
+</section>
+
+<!-- ─── 15 · SETUP: KRAFT CLUSTER ──────────────────────── -->
+<section class="slide" id="s15">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Setup</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Three brokers. No ZooKeeper.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;"><span class="term">KRaft</span> mode: Kafka runs its own Raft for cluster metadata (yes, the L2 algorithm, managing the brokers themselves). One Compose file, three brokers, durability triplet preconfigured.</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">shell</span></div>
+      <div class="code-body"><span class="v">$</span> docker compose up -d        <span class="cm"># kafka-1, kafka-2, kafka-3 (KRaft)</span>
+<span class="v">$</span> docker exec kafka-1 /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server kafka-1:9092 --create --topic orders \
+    --partitions <span class="g">6</span> --replication-factor <span class="g">3</span>
+<span class="v">$</span> uv run python src/produce_orders.py   <span class="cm"># every demo: uv run python src/...</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">Python client is <span class="ink-mono">confluent-kafka</span> (a wrapper over librdkafka, fast and complete) &mdash; <strong>not</strong> <span class="ink-mono">kafka-python</span>, which is unmaintained. Brokers listen on <span class="ink-mono">localhost:19092 / 29092 / 39092</span>; the why is in the annex gotchas.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ENVIRONMENT</span><span>docker compose &middot; uv run</span></div>
+</section>
+
+<!-- ─── 16 · LIVE: DESCRIBE THE TOPIC ──────────────────── -->
+<section class="slide" id="s16">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Live &middot; describe the topic</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Six partitions. Where do the <em>leaders</em> land?</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:660px;">Before we look: 6 partitions, 3 brokers, RF=3. Predict the leader layout, and what the ISR column shows on a healthy cluster.</p>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">kafka-topics.sh --describe --topic orders</span></div>
+      <div class="code-body">Partition: 0   Leader: <span class="g">1</span>   Replicas: 1,2,3   Isr: <span class="n">1,2,3</span>
+Partition: 1   Leader: <span class="g">2</span>   Replicas: 2,3,1   Isr: <span class="n">2,3,1</span>
+Partition: 2   Leader: <span class="g">3</span>   Replicas: 3,1,2   Isr: <span class="n">3,1,2</span>
+Partition: 3   Leader: <span class="g">1</span>   Replicas: 1,3,2   Isr: <span class="n">1,3,2</span>
+Partition: 4   Leader: <span class="g">2</span>   Replicas: 2,1,3   Isr: <span class="n">2,1,3</span>
+Partition: 5   Leader: <span class="g">3</span>   Replicas: 3,2,1   Isr: <span class="n">3,2,1</span></div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">Leaders spread evenly: each broker leads two partitions and follows four. Compare CockroachDB&rsquo;s leaseholders-per-range from L2 &mdash; same load-spreading instinct, and the ISR column is the health gauge we&rsquo;ll watch when we start killing brokers.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>LIVE</span><span>leaders spread &middot; ISR full</span></div>
+</section>
+
+<!-- ─── 17 · THE PRODUCER ──────────────────────────────── -->
+<section class="slide" id="s17">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Phase 1 &middot; produce_orders.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Produce, keyed. Confirm, async.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">produce_orders.py</span></div>
+      <div class="code-body">producer = <span class="fn">Producer</span>({<span class="s">"bootstrap.servers"</span>: <span class="s">"localhost:19092"</span>,
+                     <span class="s">"acks"</span>: <span class="s">"all"</span>, <span class="s">"enable.idempotence"</span>: <span class="g">True</span>})
+
+producer.<span class="fn">produce</span>(topic=<span class="s">"orders"</span>,
+                 key=<span class="fn">str</span>(order[<span class="s">"customer_id"</span>]).<span class="fn">encode</span>(),   <span class="cm"># key &rarr; partition</span>
+                 value=json.<span class="fn">dumps</span>(order).<span class="fn">encode</span>(),
+                 callback=on_delivery)            <span class="cm"># fires w/ partition+offset</span>
+producer.<span class="fn">poll</span>(<span class="g">0</span>)   <span class="cm"># pump callbacks — forget this and nothing ever &ldquo;arrives&rdquo;</span></div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt"><span class="ink-mono">produce()</span> only <strong>enqueues</strong> into a client-side buffer. <span class="ink-mono">poll()</span> drives the network and your delivery callbacks; <span class="ink-mono">flush()</span> drains before exit. Skip both and the script ends with messages still in the buffer &mdash; sent nowhere, no error shown. The #1 beginner data-loss bug.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>PRODUCER</span><span>produce() buffers &middot; poll() delivers</span></div>
+</section>
+
+<!-- ─── 18 · LIVE: KEYED vs KEYLESS DISTRIBUTION ───────── -->
+<section class="slide" id="s18">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Live &middot; where do 1,000 records land?</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">50 keys, 6 partitions. <em>Even split?</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:680px;">Produce 1,000 records keyed by <span class="ink-mono">customer_id</span> (50 customers), then 1,000 with <span class="ink-mono">key=None</span>. Predict both distributions before looking.</p>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/produce_orders.py --count 1000 [--keyless]</span></div>
+      <div class="code-body"><span class="cm">keyed by customer_id        key=None (sticky)</span>
+P0  ███████████  231         P0  ████████  168
+P1  ██████  124              P1  ████████  166
+P2  █████████  187           P2  ████████  170
+P3  ███████████████  298     P3  ████████  165
+P4  ████  73                 P4  ████████  167
+P5  ████  87                 P5  ████████  164</div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">Hashing is not balancing: 50 keys over 6 partitions lands lumpy, and a few heavy customers make it lumpier. Keyless spreads evenly &mdash; but gives up per-key order. <strong>You trade order for balance with the key field.</strong></span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>LIVE</span><span>hash &ne; uniform &middot; order vs balance</span></div>
+</section>
+
+<!-- ─── 19 · THE CONSUMER ──────────────────────────────── -->
+<section class="slide" id="s19">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Phase 2 &middot; consume_naive.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The poll loop is the <em>heartbeat.</em></h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">consume_naive.py</span></div>
+      <div class="code-body">consumer = <span class="fn">Consumer</span>({<span class="s">"bootstrap.servers"</span>: <span class="s">"localhost:19092"</span>,
+                     <span class="s">"group.id"</span>: <span class="s">"order-processor"</span>,
+                     <span class="s">"auto.offset.reset"</span>: <span class="s">"earliest"</span>,   <span class="cm"># first run only</span>
+                     <span class="s">"enable.auto.commit"</span>: <span class="g">False</span>})     <span class="cm"># WE own the watermark</span>
+consumer.<span class="fn">subscribe</span>([<span class="s">"orders"</span>])
+<span class="k">while</span> <span class="g">True</span>:
+    msg = consumer.<span class="fn">poll</span>(timeout=<span class="g">1.0</span>)     <span class="cm"># also the liveness signal</span>
+    <span class="k">if</span> msg <span class="k">and not</span> msg.<span class="fn">error</span>():
+        <span class="fn">process</span>(msg)
+        consumer.<span class="fn">commit</span>(asynchronous=<span class="g">False</span>)   <span class="cm"># process, THEN commit</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">If you don&rsquo;t call <span class="ink-mono">poll()</span> within <span class="ink-mono">max.poll.interval.ms</span> (5&nbsp;min default), the broker declares you dead and rebalances your partitions away &mdash; slow per-message work between polls is the classic self-inflicted rebalance. And committing every message is fine for learning, terrible for throughput; we batch it next.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>CONSUMER</span><span>poll() = fetch + heartbeat</span></div>
+</section>
+
+<!-- ─── 20 · LIVE: STOP, RESTART, RESUME ───────────────── -->
+<section class="slide" id="s20">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Live &middot; the watermark, handed to you (again)</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Kill it. Restart. Zero re-reads.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:680px;"><span class="ink-mono">Ctrl-C</span> the consumer mid-stream, restart it, and it resumes from the last committed offset, the L5 crash-and-replay demo, except the watermark machinery ships with the broker.</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/consume_naive.py   # after a kill</span></div>
+      <div class="code-body"><span class="cm">processed 4,812 messages ... ^C  (killed)</span>
+<span class="cm">restart -&gt;</span> resuming: P0@812  P1@790  P2@843  P3@802  P4@779  P5@786
+replayed <span class="g">14</span> messages committed-but-in-flight <span class="n">(at-least-once, sink dedupes)</span>
+<span class="n">no gap, no manual bookkeeping — __consumer_offsets did the L4 metadata job</span></div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">Then start a <strong>second</strong> consumer in the same group and watch the partitions split between them, that&rsquo;s the rebalance, and it&rsquo;s where Part&nbsp;two begins.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>LIVE</span><span>committed offset = resume point</span></div>
+</section>
+
+<!-- ─── NOW-BREAK-IT DIVIDER ───────────────────────────── -->
+<section class="slide invert" id="s21">
+  <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,780px);margin:0 auto;">
+    <div class="kicker reveal" style="color:var(--accent);">Part two</div>
+    <h2 class="reveal" style="font-size:clamp(2rem,5.5vw,3.6rem);margin-top:0.6rem;">Now break it.</h2>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">A consumer that works alone is the easy part. The real lesson is what happens when the group <em>changes</em>: a member joins, a member dies, the lag climbs, the events arrive out of order, and a broker disappears.</p>
+    <div class="stream reveal" style="margin:clamp(1rem,2.4vh,1.6rem) auto 0;max-width:min(80vw,460px);">
+      <div class="stream-rail">
+        <span class="node src">works alone</span>
+        <span class="rail">
+          <span class="pkt" style="animation-delay:0s">42</span>
+          <span class="pkt" style="animation-delay:-2.8s">77</span>
+        </span>
+        <span class="node dst">survives the group</span>
+      </div>
+    </div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>NOW BREAK IT</span><span>rebalance &middot; lag &middot; disorder &middot; dead broker</span></div>
+</section>
+
+<!-- ─── 22 · REBALANCE CALLBACKS ───────────────────────── -->
+<section class="slide" id="s22">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Break 01 &middot; consume_rebalance.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Commit on the way <em>out.</em></h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">consume_rebalance.py</span></div>
+      <div class="code-body"><span class="k">def</span> <span class="fn">on_revoke</span>(consumer, partitions):
+    <span class="cm"># partitions are about to be taken — last chance for in-flight work</span>
+    consumer.<span class="fn">commit</span>(offsets=consumer.<span class="fn">position</span>(partitions),
+                    asynchronous=<span class="g">False</span>)
+
+<span class="k">def</span> <span class="fn">on_assign</span>(consumer, partitions):
+    <span class="fn">init_state</span>(partitions)              <span class="cm"># fresh counters per partition</span>
+
+consumer.<span class="fn">subscribe</span>([<span class="s">"orders"</span>], on_assign=on_assign, on_revoke=on_revoke)
+<span class="cm"># + "partition.assignment.strategy": "cooperative-sticky"</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">This is L5&rsquo;s apply-then-confirm discipline meeting a new failure mode: the work doesn&rsquo;t crash, it gets <strong>reassigned</strong>. The commit in <span class="ink-mono">on_revoke</span> is the handoff note you leave for whoever inherits the partition.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>REBALANCE CALLBACKS</span><span>revoke = commit &middot; assign = init</span></div>
+</section>
+
+<!-- ─── 23 · LIVE: THE REBALANCE EXPERIMENT ────────────── -->
+<section class="slide" id="s23">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Break 01 &middot; live</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Join. Kill. Count the <em>duplicates.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">Producer runs continuously. Consumer A owns all 6 partitions; B joins (rebalance one), then B dies (rebalance two). Run it twice: with the <span class="ink-mono">on_revoke</span> commit, and with <span class="ink-mono">--skip-revoke-commit</span>. Predict the duplicate count for each.</p>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/consume_rebalance.py  [--skip-revoke-commit]</span></div>
+      <div class="code-body"><span class="cm">with on_revoke commit:</span>
+REVOKED P3,P4,P5 &rarr; committed P3@2052 P4@2049 P5@2051
+B resumes at 2052/2050/2052 &rarr; duplicates: <span class="n">0</span>
+
+<span class="cm">--skip-revoke-commit:</span>
+REVOKED P3,P4,P5 &rarr; <span class="r">nothing committed since last batch</span>
+B resumes at last commit (1840) &rarr; duplicates: <span class="r">212 reprocessed</span></div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">Nothing was lost either way &mdash; at-least-once held. The difference is <strong>212 duplicates</strong> handed to your sink. If that sink is idempotent (L4, L5), you survive your own mistake. This experiment, done correctly, <em>is</em> the take-home.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>BREAK 01 &middot; LIVE</span><span>skip the commit &rarr; inherit the duplicates</span></div>
+</section>
+
+<!-- ─── 24 · LAG: THE METRIC, AGAIN ────────────────────── -->
+<section class="slide" id="s24">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Break 02 &middot; the signal that matters</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Lag: the same number, <em>third costume.</em></h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">the lag formula, per partition</span></div>
+      <div class="code-body">lo, hi = consumer.<span class="fn">get_watermark_offsets</span>(tp)   <span class="cm"># hi = log-end offset</span>
+lag    = hi - committed_offset                 <span class="cm"># how far behind you are</span></div>
+    </div>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:820px;">
+      <thead><tr><th>Lesson</th><th>&ldquo;What&rsquo;s committed&rdquo;</th><th>&ldquo;What I&rsquo;ve confirmed&rdquo;</th></tr></thead>
+      <tbody>
+        <tr><td>L5 CDC</td><td><span class="ink-mono">pg_current_wal_lsn()</span></td><td><span class="ink-mono">confirmed_flush_lsn</span></td></tr>
+        <tr class="hot"><td>L6 Kafka</td><td>high watermark (log end)</td><td>committed offset</td></tr>
+      </tbody>
+    </table>
+    <div class="callout proof reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+      <span class="ctxt">Flat lag = keeping pace. Growing lag = falling behind, and in Kafka nobody&rsquo;s disk fills when you fall behind &mdash; <em>that</em> is what you bought by leaving the slot model. The stream just waits, and the lag number tells on you.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>CONSUMER LAG</span><span>hi watermark &minus; committed</span></div>
+</section>
+
+<!-- ─── 25 · LIVE: LAG UNDER A SLOW CONSUMER ───────────── -->
+<section class="slide" id="s25">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Break 02 &middot; live</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">One slow consumer. Then <em>two.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:680px;">Producer at full speed; consumer sleeps 10&nbsp;ms per message. Watch the lag. Then add a second consumer to the group and predict the curve.</p>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:720px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/watch_lag.py</span></div>
+      <div class="code-body"><span class="cm">consumers   total lag    trend</span>
+1           12,406       <span class="r">climbing ~900/s</span>
+1           21,512       <span class="r">climbing</span>
+2 (joined)  23,108       <span class="n">flattening…</span>
+2           22,887       <span class="n">draining ~450/s</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2h6c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>
+      <span class="ctxt"><strong>The question to leave with:</strong> lag still grows with 6 consumers on 6 partitions &mdash; what are your options? <em>(None that are free: more partitions means repartitioning and rebalances; or make each consumer faster. The partition count you chose on day one is the ceiling you live with.)</em></span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>BREAK 02 &middot; LIVE</span><span>scaling consumption = adding consumers, to a ceiling</span></div>
+</section>
+
+<!-- ─── 26 · OUT-OF-ORDER EVENTS ───────────────────────── -->
+<section class="slide" id="s26">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Break 03 &middot; produce_out_of_order.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Kafka keeps <em>produce</em> order. Not <em>event</em> order.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Produce an order lifecycle (<span class="ink-mono">created &rarr; paid &rarr; shipped</span>) shuffled, the way retries, mobile clients, and parallel services actually deliver it. Key by <span class="ink-mono">order_id</span>, then read it back:</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:740px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">consumer output, partition 1</span></div>
+      <div class="code-body">offset 0  order 1  <span class="s">"paid"</span>     ts=10:00:05   <span class="r">&larr; timestamp disorder,</span>
+offset 1  order 1  <span class="s">"created"</span>  ts=10:00:00   <span class="r">   preserved faithfully</span>
+offset 2  order 1  <span class="s">"shipped"</span>  ts=10:00:30
+<span class="cm"># and across partitions: order 2's "cancelled" may precede order 1's "created"</span></div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">The log records <strong>arrival</strong>, faithfully &mdash; including faithfully wrong. If your logic needs <em>timestamp</em> order, Kafka alone cannot give it to you. You need event-time semantics and <span class="term">watermarks</span>: that is literally next week&rsquo;s lesson, and today&rsquo;s shuffled topic is next week&rsquo;s test data.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>BREAK 03</span><span>arrival order &ne; event time &rarr; L7</span></div>
+</section>
+
+<!-- ─── 27 · LIVE: KILL THE BROKERS ────────────────────── -->
+<section class="slide" id="s27">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Break 04 &middot; live</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Kill one broker. Then another.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:680px;">RF=3, <span class="ink-mono">min.insync.replicas=2</span>, <span class="ink-mono">acks=all</span>, producer running. Predict what each kill does before we do it.</p>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">shell + producer output</span></div>
+      <div class="code-body"><span class="v">$</span> docker stop kafka-3
+producer: <span class="n">uninterrupted</span>          Isr: 1,2     <span class="cm"># ISR shrinks, writes flow</span>
+
+<span class="v">$</span> docker stop kafka-2
+producer: <span class="r">NOT_ENOUGH_REPLICAS</span>    Isr: 1       <span class="cm"># below min.insync — REFUSED</span>
+
+<span class="v">$</span> docker start kafka-2 kafka-3
+producer: <span class="n">resumes</span>                Isr: 1,2,3   <span class="cm"># followers catch up, rejoin</span></div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">The refusal is the feature: Kafka won&rsquo;t accept data it can&rsquo;t replicate safely. You watched CockroachDB do exactly this in L2 when the second node died &mdash; same principle (redundancy has a floor), different mechanism (dynamic ISR vs fixed quorum).</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>BREAK 04 &middot; LIVE</span><span>lose 1: fine &middot; lose 2: refuse, on purpose</span></div>
+</section>
+
+<!-- ─── PART THREE DIVIDER ─────────────────────────────── -->
+<section class="slide invert" id="s28">
+  <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,800px);margin:0 auto;">
+    <div class="kicker reveal" style="color:var(--accent);">Part three</div>
+    <h2 class="reveal" style="font-size:clamp(1.9rem,5.4vw,3.5rem);margin-top:0.6rem;">You&rsquo;ll never write a poll loop <em>again.</em></h2>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:620px;">Everything you hand-rolled today &mdash; the loop, the commits, the rebalance callbacks, the lag math &mdash; Spark Structured Streaming does for you next week. You wrote it once so its version is never a black box.</p>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>THE BRIDGE</span><span>manual loop &rarr; Spark Structured Streaming</span></div>
+</section>
+
+<!-- ─── 29 · THE MAPPING TABLE ─────────────────────────── -->
+<section class="slide" id="s29">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">Show &amp; tell &middot; the mapping</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Nothing new. Everything automated.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>What you built today</th><th>What Spark does in Lesson 7</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">consumer.poll()</span> loop</td><td>Micro-batch scheduler polls on each trigger</td></tr>
+        <tr><td>Manual commits + <span class="ink-mono">on_revoke</span></td><td>Offsets written to the checkpoint dir after each batch</td></tr>
+        <tr><td><span class="ink-mono">on_assign</span> / <span class="ink-mono">on_revoke</span> callbacks</td><td>Partition assignment managed internally</td></tr>
+        <tr><td><span class="ink-mono">get_watermark_offsets()</span> lag math</td><td><span class="ink-mono">StreamingQueryProgress</span> rates &amp; offset ranges</td></tr>
+        <tr><td><span class="ink-mono">json.loads</span> per message</td><td><span class="ink-mono">from_json()</span> with a declared schema</td></tr>
+        <tr class="hot"><td>Keying &amp; partition reasoning</td><td>Still yours. No framework chooses your keys.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout proof reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">Same shape as L4 (you built it &rarr; Airflow ran it) and L5 (you built it &rarr; Debezium config&rsquo;d it). When Spark throws &ldquo;streaming query failed,&rdquo; you&rsquo;ll debug it at <em>this</em> level: offsets, rebalances, lag.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>BY HAND &rarr; SPARK</span><span>same parts, scheduled</span></div>
+</section>
+
+<!-- ─── 30 · SPARK PREVIEW CODE ────────────────────────── -->
+<section class="slide" id="s30">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Preview &middot; not an exercise</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Your whole afternoon, in one expression.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">Lesson 7 code, shown early on purpose</span></div>
+      <div class="code-body">orders = (spark.readStream.<span class="fn">format</span>(<span class="s">"kafka"</span>)               <span class="cm"># your poll loop</span>
+    .<span class="fn">option</span>(<span class="s">"subscribe"</span>, <span class="s">"orders"</span>)
+    .<span class="fn">option</span>(<span class="s">"startingOffsets"</span>, <span class="s">"earliest"</span>)            <span class="cm"># auto.offset.reset</span>
+    .<span class="fn">load</span>()
+    .<span class="fn">select</span>(<span class="fn">from_json</span>(col(<span class="s">"value"</span>).<span class="fn">cast</span>(<span class="s">"string"</span>), schema)))  <span class="cm"># json.loads</span>
+
+orders.writeStream.<span class="fn">option</span>(<span class="s">"checkpointLocation"</span>, <span class="s">"/ckpt"</span>) <span class="cm"># your commits</span>
+    .<span class="fn">trigger</span>(processingTime=<span class="s">"10 seconds"</span>).<span class="fn">start</span>()       <span class="cm"># your while True</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">The <span class="ink-mono">checkpointLocation</span> is the interesting line: Spark stores offsets <em>and</em> processing state there atomically &mdash; that&rsquo;s how it upgrades your at-least-once to exactly-once. The price and the fine print: Lesson&nbsp;8.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>PREVIEW</span><span>poll loop &rarr; one declaration</span></div>
+</section>
+
+<!-- ─── 31 · SYNTHESIS ─────────────────────────────────── -->
+<section class="slide" id="s31">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Synthesis</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">One structure. Four rules.</h2>
+    <p class="lede reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:760px;">Kafka is an append-only log with consumer-owned positions. Everything else you saw today is a corollary. The rules to carry out of the room:</p>
+    <ul class="bullets reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);max-width:800px;">
+      <li><strong>Process, then commit.</strong> The watermark rule, in its third and final costume. Pair it with an idempotent sink and replay is free.</li>
+      <li><strong>Keys are architecture.</strong> They decide ordering, balance, and who suffers when a customer goes viral. Decide before the first message.</li>
+      <li><strong>Parallelism = partitions.</strong> Chosen at creation, expensive to change. Capacity-plan it like you planned shards.</li>
+      <li><strong>Lag is the metric.</strong> Flat = healthy. Growing = scale consumers, or accept the delay. Nobody&rsquo;s disk fills anymore, that&rsquo;s the upgrade.</li>
+    </ul>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>SYNTHESIS</span><span>the log + four rules</span></div>
+</section>
+
+<!-- ─── 32 · WHAT'S NEXT → L7 ──────────────────────────── -->
+<section class="slide invert" id="s32">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal" style="border-color:var(--accent);">What&rsquo;s next</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The data flows. Now <em>compute</em> on it.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Events move through Kafka in real time &mdash; but &ldquo;revenue in the last 5 minutes&rdquo; is still a question you can&rsquo;t answer. Aggregating a stream that never ends needs windows. And your Break&nbsp;03 topic proved the hard part: events arrive in the wrong order, so <em>when is a window done?</em></p>
+    <div class="archviz reveal" style="margin-top:clamp(0.8rem,2vh,1.3rem);">
+      <div class="arch-node"><div class="an-title">TODAY</div><hr class="an-rule"><div class="arch-line" style="text-align:center;">events flow, ordered<br>per key, replayable</div></div>
+      <div class="arch-conn"><div class="ac-top">needs</div><div class="ac-arrow"></div><div class="ac-sub">windows + event time</div></div>
+      <div class="arch-node tgt"><div class="an-title">LESSON 7</div><hr class="an-rule"><div class="arch-line" style="text-align:center;">Spark Structured Streaming<br>tumbling windows &middot; watermarks</div></div>
+    </div>
+    <p class="sub reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);max-width:720px;">Bring your out-of-order topic. It&rsquo;s the lab rat.</p>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>WHAT&rsquo;S NEXT</span><span>windowing &middot; event time &middot; watermarks</span></div>
+</section>
+
+<!-- ─── 33 · TAKE-HOME ─────────────────────────────────── -->
+<section class="slide" id="s33">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Take-home</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Ship a consumer that survives the rebalance.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A producer (keyed by <span class="ink-mono">customer_id</span>), and a consumer that handles group changes correctly and reports its own health.</p>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
+      <li><strong>Manual commits</strong>, no auto-commit anywhere; cooperative-sticky assignment.</li>
+      <li><strong><span class="ink-mono">on_revoke</span> commits in-flight work</strong>; <span class="ink-mono">on_assign</span> initializes per-partition state.</li>
+      <li><strong>Lag reporter</strong> printing per-partition and total lag on an interval.</li>
+      <li><strong>The proof</strong>: a script or README walkthrough of join &rarr; kill &rarr; rejoin showing the rebalance events, the commits, and zero loss.</li>
+    </ul>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+      <span class="ctxt">Deliverable standard: the grader starts your consumer, adds a second, kills it, and reads your lag output. Repo with README (your words: what the callbacks do, what the broker kill printed) + AGENTS.md/CLAUDE.md. AI-assisted is fine &mdash; the grade is on the rebalance being <em>correct</em>.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>DELIVERABLE</span><span>rebalance &middot; lag &middot; no loss</span></div>
+</section>
+
+<!-- ─── 34 · ANNEX · RUN IT ────────────────────────────── -->
+<section class="slide" id="s34">
+  <div class="slide-content" style="max-width:min(92vw,880px);margin:0 auto;">
+    <div class="kicker reveal">Annex</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Run it yourself.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:780px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">end-to-end</span></div>
+      <div class="code-body"><span class="v">$</span> docker compose up -d                          <span class="cm"># 3 brokers, KRaft</span>
+<span class="v">$</span> uv run python src/create_topics.py            <span class="cm"># orders: 6 partitions, RF=3</span>
+<span class="v">$</span> uv run python src/produce_orders.py --rate 100 <span class="cm"># keyed events, continuous</span>
+<span class="v">$</span> uv run python src/consume_rebalance.py        <span class="cm"># terminal 2 (and 3: same group)</span>
+<span class="v">$</span> uv run python src/watch_lag.py                <span class="cm"># the only number that matters</span>
+<span class="v">$</span> uv run python src/produce_out_of_order.py     <span class="cm"># break 03: L7's lab rat</span>
+<span class="v">$</span> docker stop kafka-3                           <span class="cm"># break 04 (then kafka-2 → refused)</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">Reset anytime: <span class="ink-mono">docker compose down -v</span> wipes broker volumes (and stale cluster IDs, see gotchas). Consumer groups reset by changing <span class="ink-mono">group.id</span> or <span class="ink-mono">kafka-consumer-groups.sh --reset-offsets</span>.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANNEX &middot; RUN</span><span>uv run python src/&lt;script&gt;</span></div>
+</section>
+
+<!-- ─── 35 · ANNEX · OPENCODE PROMPTS ──────────────────── -->
+<section class="slide" id="s35">
+  <div class="slide-content" style="max-width:min(92vw,880px);margin:0 auto;">
+    <div class="kicker reveal">Annex &middot; AI in the loop</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Prompts for this pipeline.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">Let <span class="ink-mono">opencode</span> draft the mechanical parts; you own the correctness decisions (commit ordering, the revoke callback, key choice).</p>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <span class="plabel">producer</span>
+      <span class="pcmd">Write a confluent-kafka producer sending order JSON to 'orders', keyed by customer_id, acks=all, idempotence on, printing partition+offset from the delivery callback. Don't forget poll(0) and flush().</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">rebalance</span>
+      <span class="pcmd">Add on_assign/on_revoke with cooperative-sticky to my consumer. on_revoke must synchronously commit consumer.position() for the revoked partitions BEFORE they're taken.</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">lag</span>
+      <span class="pcmd">Write watch_lag.py: every 5s print per-partition lag (high watermark via get_watermark_offsets minus committed offset) and the total, for group 'order-processor'.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANNEX &middot; OPENCODE</span><span>draft mechanics &middot; own correctness</span></div>
+</section>
+
+<!-- ─── 36 · ANNEX · ARCHITECTURE ──────────────────────── -->
+<section class="slide" id="s36">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="kicker reveal">Annex</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Producers, partitions, group.</h2>
+    <div class="arch reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);">  PRODUCERS                KAFKA (3 brokers, KRaft)            GROUP "order-processor"
+                          topic: orders (RF=3, min.isr=2)
+  produce_orders.py ──▶   P0 [........▮] leader: kafka-1  ──▶  consumer A
+   key=customer_id        P1 [......▮]   leader: kafka-2  ──▶  consumer A
+                          P2 [.........▮] leader: kafka-3 ──▶  consumer A
+  produce_out_of_   ──▶   P3 [.......▮]  leader: kafka-1  ──▶  consumer B
+   order.py               P4 [.....▮]    leader: kafka-2  ──▶  consumer B
+                          P5 [......▮]   leader: kafka-3  ──▶  consumer B
+                               ▲ high watermark      ▲ committed offset (__consumer_offsets)
+                               └─────── lag = distance between them ──────┘</div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">Add a second <em>group</em> (different <span class="ink-mono">group.id</span>) and it gets the whole stream again, independently &mdash; the fan-out that cost one replication slot per reader in L5 is free here.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANNEX &middot; ARCHITECTURE</span><span>producers &rarr; partitions &rarr; group</span></div>
+</section>
+
+<!-- ─── 37 · ANNEX · GOTCHAS ───────────────────────────── -->
+<section class="slide" id="s37">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="kicker reveal">Annex</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Read before you debug.</h2>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:840px;">
+      <li><strong>Advertised listeners.</strong> The broker you dial replies &ldquo;talk to me at <em>this</em> address&rdquo; &mdash; if that address isn&rsquo;t reachable from your laptop, you connect, then mysteriously time out. That&rsquo;s why each broker advertises its own port (19092/29092/39092). The #1 Docker-Kafka failure.</li>
+      <li><strong><span class="ink-mono">produce()</span> is buffered.</strong> No <span class="ink-mono">poll()</span>/<span class="ink-mono">flush()</span> = no delivery, no error, no trace. Always flush before exit.</li>
+      <li><strong>Stale volumes break cluster formation.</strong> Recreated the compose file? Old volume keeps the old cluster ID and brokers refuse to join. <span class="ink-mono">docker compose down -v</span>.</li>
+      <li><strong>Slow processing = rebalance storm.</strong> Exceed <span class="ink-mono">max.poll.interval.ms</span> between polls and you&rsquo;re evicted; the group rebalances, twice. Do heavy work in batches, poll often.</li>
+      <li><strong><span class="ink-mono">confluent-kafka</span>, not <span class="ink-mono">kafka-python</span>.</strong> The latter is unmaintained.</li>
+      <li><strong>More consumers than partitions = idle consumers.</strong> Not an error, just silent waste. Check the assignment printout.</li>
+    </ul>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANNEX &middot; GOTCHAS</span><span>listeners &middot; buffers &middot; volumes &middot; poll cadence</span></div>
+</section>
+
+<!-- ─── 38 · ANNEX · SCRIPTS ───────────────────────────── -->
+<section class="slide" id="s38">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Annex</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Every script in this lesson.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Script</th><th>What it does</th><th>Slide</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">create_topics.py</span></td><td>orders (6 partitions, RF=3) + order-events</td><td>15&ndash;16</td></tr>
+        <tr><td><span class="ink-mono">produce_orders.py</span></td><td>Keyed order events; <span class="ink-mono">--keyless</span>, <span class="ink-mono">--rate</span>, <span class="ink-mono">--count</span></td><td>17&ndash;18</td></tr>
+        <tr><td><span class="ink-mono">consume_naive.py</span></td><td>Poll loop, manual commit-per-message</td><td>19&ndash;20</td></tr>
+        <tr><td><span class="ink-mono">consume_rebalance.py</span></td><td>Callbacks + batch commits; <span class="ink-mono">--skip-revoke-commit</span></td><td>22&ndash;23</td></tr>
+        <tr><td><span class="ink-mono">watch_lag.py</span></td><td>Per-partition lag bars, every 5 s</td><td>24&ndash;25</td></tr>
+        <tr><td><span class="ink-mono">produce_out_of_order.py</span></td><td>Shuffled lifecycle events, keyed by order_id</td><td>26</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">All under <span class="ink-mono">src-lesson6/src/</span>, same layout as Lessons 4&ndash;5: <span class="ink-mono">docker compose up -d</span>, then <span class="ink-mono">uv run python src/&lt;script&gt;.py</span>. Break 04 is plain <span class="ink-mono">docker stop</span>.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANNEX &middot; SCRIPTS</span><span>src-lesson6/src/</span></div>
+</section>
+
+<script>
+/* ============ navigation + reveal orchestration ============ */
+const slides=[...document.querySelectorAll('.slide')];
+const bar=document.getElementById('progressBar');
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('visible');
+      const i=slides.indexOf(e.target);
+      bar.style.width=((i+1)/slides.length*100)+'%';
+    }
+  });
+},{threshold:0.5});
+slides.forEach(s=>io.observe(s));
+
+function go(n){const i=Math.max(0,Math.min(slides.length-1,n));slides[i].scrollIntoView({behavior:'smooth'});}
+function current(){
+  let best=0,bestTop=Infinity;
+  slides.forEach((s,i)=>{const t=Math.abs(s.getBoundingClientRect().top);if(t<bestTop){bestTop=t;best=i;}});
+  return best;
+}
+window.addEventListener('keydown',(e)=>{
+  if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(current()+1);}
+  else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(current()-1);}
+  else if(e.key==='Home'){e.preventDefault();go(0);}
+  else if(e.key==='End'){e.preventDefault();go(slides.length-1);}
+  else if(e.key==='r'||e.key==='R'){slides[current()].querySelectorAll('.spoiler').forEach(s=>s.classList.add('revealed'));}
+});
+document.querySelectorAll('.spoiler').forEach(s=>s.addEventListener('click',()=>s.classList.add('revealed')));
+</script>
+
+</body>
+</html>
