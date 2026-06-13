@@ -395,7 +395,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
 <!-- ─── 05 · NOT A MESSAGE QUEUE ───────────────────────── -->
 <section class="slide" id="s5">
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the distinction that matters</div>
+    <div class="section-marker reveal">The distinction that matters</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Kafka is <em>not</em> a message queue.</h2>
     <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <thead><tr><th></th><th>Queue (RabbitMQ)</th><th>Log (Kafka)</th></tr></thead>
@@ -419,7 +419,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
 <!-- ─── 06 · LOG-STRUCTURED STORAGE ────────────────────── -->
 <section class="slide" id="s6">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; why it&rsquo;s fast</div>
+    <div class="section-marker reveal">Why it&rsquo;s fast</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Append-only is the <em>physics</em> answer.</h2>
     <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
       <li><strong>Writes:</strong> append to the end of a segment file. No seeks, no rewrites. NVMe sustains 2&ndash;3&nbsp;GB/s sequential.</li>
@@ -438,7 +438,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:0}
 <!-- ─── 07 · TOPICS, PARTITIONS, OFFSETS ───────────────── -->
 <section class="slide" id="s7">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the unit of everything</div>
+    <div class="section-marker reveal">The unit of everything</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Topic, split into <em>partitions.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">A <span class="term">topic</span> is a named log. One log on one machine doesn&rsquo;t scale, so Kafka splits it into <span class="term">partitions</span>: independent logs on (potentially) different brokers. The <span class="term">offset</span> is just an integer, your position in one partition.</p>
     <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">Topic: orders  (3 partitions)
@@ -459,7 +459,7 @@ P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div
 <!-- ─── 08 · KEYS ARE ARCHITECTURE ─────────────────────── -->
 <section class="slide" id="s8">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the decision that bites</div>
+    <div class="section-marker reveal">The decision that bites</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The key is an <em>architectural</em> decision.</h2>
     <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
       <li>Key by <span class="ink-mono">customer_id</span>: all of a customer&rsquo;s events stay ordered, but a whale customer concentrates load on one partition.</li>
@@ -478,7 +478,7 @@ P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div
 <!-- ─── 09 · CONSUMER GROUPS ───────────────────────────── -->
 <section class="slide" id="s9">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; how reading scales</div>
+    <div class="section-marker reveal">How reading scales</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Consumer groups divide the partitions.</h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">A <span class="term">consumer group</span> is a team reading one topic together. Kafka gives each partition to exactly <strong>one</strong> consumer in the group. Different groups are invisible to each other, each gets the whole stream.</p>
     <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">group "order-processor"          6 partitions
@@ -498,7 +498,7 @@ P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div
 <!-- ─── 10 · OFFSETS = THE SAME RULE, THIRD TIME ───────── -->
 <section class="slide" id="s10">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; offset commits</div>
+    <div class="section-marker reveal">Offset commits</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">The same rule. <em>Third time.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A consumer periodically commits &ldquo;I&rsquo;ve processed up to offset X&rdquo; (to an internal topic, <span class="ink-mono">__consumer_offsets</span>). On restart it resumes from there. You have built this watermark twice already, and the rule hasn&rsquo;t changed:</p>
     <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:820px;">
@@ -521,7 +521,7 @@ P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div
 <!-- ─── 11 · REBALANCING ───────────────────────────────── -->
 <section class="slide" id="s11">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the stop-the-world event</div>
+    <div class="section-marker reveal">The stop-the-world event</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Rebalancing: partitions <em>move.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A consumer joins, crashes, or just polls too slowly &mdash; and the group coordinator redistributes partitions. Two callbacks bracket the move, and one of them carries all the risk:</p>
     <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:800px;">
@@ -541,7 +541,7 @@ P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div
 <!-- ─── 12 · EXACTLY-ONCE, THREE LEVELS ────────────────── -->
 <section class="slide" id="s12">
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the words on the box</div>
+    <div class="section-marker reveal">The words on the box</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">&ldquo;Exactly-once&rdquo; is <em>three</em> claims.</h2>
     <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <thead><tr><th>Level</th><th>Mechanism</th><th>What it protects</th></tr></thead>
@@ -563,7 +563,7 @@ P2:  [0][1][2][3][4][5][6][7][8]&rarr;    key="cust-13" &rarr; hash % 3 = 2</div
 <!-- ─── 13 · ISR vs RAFT ───────────────────────────────── -->
 <section class="slide" id="s13">
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; replication</div>
+    <div class="section-marker reveal">Replication</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">ISR: consensus with the <em>dial exposed.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Each partition has a leader and followers. The <span class="term">ISR</span> (in-sync replicas) is the set that&rsquo;s caught up. With <span class="ink-mono">acks=all</span>, a write is confirmed when every ISR member has it. The ISR <em>shrinks</em> when followers lag &mdash; and that&rsquo;s the difference from Raft:</p>
     <div class="two-col reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;">

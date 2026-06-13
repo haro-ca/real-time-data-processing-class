@@ -427,7 +427,7 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
 <!-- ─── 07 · THE WAL WAS A LOG ALL ALONG (L1 callback) ── -->
 <section class="slide" id="s7">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; where the stream comes from</div>
+    <div class="section-marker reveal">Where the stream comes from</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">You&rsquo;ve had the stream <em>since Lesson 1.</em></h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Remember the WAL? Every committed transaction writes its changes to the <span class="term">write-ahead log</span> <em>before</em> Postgres acknowledges the client. We met it as a durability mechanism. It&rsquo;s also something else:</p>
     <p class="lede reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);max-width:760px;">The WAL is already a complete, ordered log of <em>every</em> change to <em>every</em> row, an event stream hiding in plain sight.</p>
@@ -443,7 +443,7 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
 <!-- ─── 08 · wal_level: minimal / replica / logical ────── -->
 <section class="slide" id="s8">
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; wal_level</div>
+    <div class="section-marker reveal">wal_level</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Three levels. Only one decodes.</h2>
     <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <thead><tr><th>wal_level</th><th>What it records</th><th>Good for</th></tr></thead>
@@ -465,7 +465,7 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
 <!-- ─── 09 · DECODING ARCHITECTURE ─────────────────────── -->
 <section class="slide" id="s9">
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the three pieces</div>
+    <div class="section-marker reveal">The three pieces</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Slot, plugin, publication.</h2>
     <div class="archviz reveal" style="margin-top:clamp(0.7rem,1.8vh,1.2rem);">
       <div class="arch-node"><div class="an-title">POSTGRES</div><hr class="an-rule"><div class="arch-row"><span>orders table</span><span class="num">DML</span></div><div class="arch-row"><span>WAL (logical)</span><span class="num">ordered</span></div><div class="arch-foot">the source of truth</div></div>
@@ -485,7 +485,7 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
 <!-- ─── 10 · REPLICA IDENTITY FULL ─────────────────────── -->
 <section class="slide" id="s10">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; a setting that bites</div>
+    <div class="section-marker reveal">A setting that bites</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Do you need the <em>old</em> values?</h2>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">By default, an UPDATE/DELETE event carries only the <strong>primary key</strong> in its &ldquo;before&rdquo; image. You learn <em>which</em> row changed and its new values, but not what it used to be.</p>
     <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:640px;">
@@ -505,7 +505,7 @@ sum(amount) mismatch on <span class="r">3</span> rows (updated_at not set)
 <!-- ─── 11 · OUTPUT PLUGINS: pgoutput vs wal2json ──────── -->
 <section class="slide" id="s11">
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; what we&rsquo;ll read</div>
+    <div class="section-marker reveal">What we&rsquo;ll read</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Read JSON, not bytes.</h2>
     <div class="two-col reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);flex:unset;">
       <div class="col">
@@ -716,7 +716,7 @@ orders_slot  <span class="g">262,144</span>     <span class="g">1,011</span>    
 <!-- ─── 19 · LAG IS THE ONE METRIC ─────────────────────── -->
 <section class="slide" id="s19">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 1 &middot; the signal that matters</div>
+    <div class="section-marker reveal">The signal that matters</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">If you watch one number, watch this.</h2>
     <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:780px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">the lag query</span></div>
