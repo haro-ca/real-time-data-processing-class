@@ -41,6 +41,7 @@ cd src-lesson6
 docker compose up -d                       # 3 brokers (kafka-1/2/3) + runner, KRaft
 uv run python src/create_topics.py         # orders (6 part, RF=3) + order-events (3)
 uv run python src/create_topics.py --describe   # sanity: ISR shows all 3 per partition
+uv run python src/produce_orders.py --count 10   # warm-up: first call can be slow due to coordinator load
 ```
 
 - Brokers are on **localhost:19092 / 29092 / 39092** from the laptop.
