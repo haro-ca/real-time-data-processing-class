@@ -15,7 +15,7 @@ Usage:
 import argparse
 import time
 
-from confluent_kafka import Consumer, TopicPartition
+from confluent_kafka import ConsumerGroupTopicPartitions, Consumer, TopicPartition
 from confluent_kafka.admin import AdminClient
 
 from config import BOOTSTRAP, GROUP, TOPIC_ORDERS
@@ -42,9 +42,16 @@ def watch(group: str, topic: str, interval: float, iters: int | None) -> None:
     prev_total = None
     i = 0
     while iters is None or i < iters:
-        committed = {tp.partition: tp.offset
-                     for tp in probe.committed([TopicPartition(topic, tp.partition, 0)
-                                                for tp in tps], timeout=10)}
+        # The committed offsets we want belong to the TARGET group. A probe
+        # Consumer's .committed() returns the PROBE's OWN group (which never
+        # commits) — so it would always read 0 and report the whole backlog as
+        # lag. Ask the broker for the real group's offsets via the admin API.
+        try:
+            res = admin.list_consumer_group_offsets(
+                [ConsumerGroupTopicPartitions(group, None)])[group].result(timeout=10)
+            committed = {tp.partition: tp.offset for tp in res.topic_partitions}
+        except Exception:
+            committed = {}
         rows, total = [], 0
         for tp in tps:
             _, hi = probe.get_watermark_offsets(tp, timeout=10, cached=False)

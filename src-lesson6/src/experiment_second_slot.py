@@ -28,6 +28,7 @@ from config import PG_DSN
 
 SLOTS = ["team_fraud", "team_search"]      # the two new teams
 SCRATCH = "l6_hook_traffic"                # our own table: don't touch L5's data
+REPORT_EVERY = 20_000                      # rows between status lines (and checkpoints)
 
 LAG_SQL = """
     SELECT slot_name,
@@ -53,30 +54,48 @@ def run(seconds: int) -> None:
 
         print(f"\nwrite workload for {seconds}s — {SLOTS[0]}'s consumer keeps pace,"
               f" {SLOTS[1]}'s is down:\n")
+        def keep_pace_and_reclaim() -> None:
+            """team_fraud's consumer keeps pace, and we RECLAIM its WAL.
+
+            Draining a slot (get_changes) advances confirmed_flush_lsn, but the
+            restart_lsn — the point that actually pins WAL on disk — only moves
+            forward at a CHECKPOINT. So: drain, checkpoint, drain again (the
+            second drain decodes the checkpoint's running-xact record and lets
+            restart_lsn jump to now). team_search never reads, so the checkpoint
+            cannot free its WAL: that's the contrast we want on screen.
+            """
+            for _ in range(2):
+                pg.execute(
+                    "SELECT count(*) FROM pg_logical_slot_get_changes(%s, NULL, NULL)",
+                    (SLOTS[0],),
+                )
+                pg.execute("CHECKPOINT")
+
         t0 = time.time()
         i = 0
         while time.time() - t0 < seconds:
             # the workload: bulk-ish inserts so the WAL actually moves
             pg.execute(
+                # cast the bounds: psycopg adapts small ints to smallint, and
+                # generate_series(smallint, smallint) is ambiguous in Postgres.
                 f"INSERT INTO {SCRATCH} SELECT g, repeat('x', 200) "
-                f"FROM generate_series(%s, %s) g", (i, i + 999),
+                f"FROM generate_series(%s::bigint, %s::bigint) g", (i, i + 999),
             )
             i += 1000
-            # team_fraud's consumer is alive: drain + advance its slot
-            pg.execute(
-                "SELECT count(*) FROM pg_logical_slot_get_changes(%s, NULL, NULL)",
-                (SLOTS[0],),
-            )
-            if i % 5000 == 0:
+            if i % REPORT_EVERY == 0:
+                keep_pace_and_reclaim()
                 rows = pg.execute(LAG_SQL, (SLOTS,)).fetchall()
                 ts = time.strftime("%H:%M:%S")
                 stat = "   ".join(f"{name}: {retained} retained" for name, retained, _ in rows)
                 print(f"  [{ts}] rows={i:>7,}   {stat}")
 
+        keep_pace_and_reclaim()
         print("\nfinal state:")
-        for name, retained, active in pg.execute(LAG_SQL, (SLOTS,)).fetchall():
-            note = "" if active else "   <- nobody reading; this NEVER shrinks"
-            print(f"  {name:<14} retained WAL: {retained}{note}")
+        retained = {name: r for name, r, _ in pg.execute(LAG_SQL, (SLOTS,)).fetchall()}
+        print(f"  {SLOTS[0]:<14} retained WAL: {retained[SLOTS[0]]:<11}"
+              f" <- consumer kept pace; freed at the last checkpoint")
+        print(f"  {SLOTS[1]:<14} retained WAL: {retained[SLOTS[1]]:<11}"
+              f" <- nobody reading; this only ever GROWS")
 
         print("\ncleanup (dropping slots + scratch table)...")
         for slot in SLOTS:

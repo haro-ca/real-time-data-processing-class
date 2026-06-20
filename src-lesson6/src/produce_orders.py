@@ -16,6 +16,7 @@ Usage:
     python src/produce_orders.py --count 1000            # bounded, then histogram
     python src/produce_orders.py --count 1000 --keyless  # key=None comparison
     python src/produce_orders.py --rate 200              # continuous (Ctrl-C stops)
+    python src/produce_orders.py --rate 50 --message-timeout 10000  # broker-kill demo
 """
 
 import argparse
@@ -62,12 +63,21 @@ def histogram(counts: dict[int, int]) -> str:
     return "\n".join(lines)
 
 
-def run(count: int | None, rate: float, keyless: bool) -> None:
-    producer = Producer({
+def run(count: int | None, rate: float, keyless: bool,
+        message_timeout_ms: int | None = None) -> None:
+    conf = {
         "bootstrap.servers": BOOTSTRAP,
         "acks": "all",                     # the producer's side of the triplet
         "enable.idempotence": True,        # default in 2.x — explicit on purpose
-    })
+    }
+    if message_timeout_ms:
+        # Default delivery.timeout.ms is 300_000 (5 min): when writes can't meet
+        # acks=all (broker-kill demo), the idempotent producer retries SILENTLY
+        # for 5 minutes and the callback never fires. A short timeout makes it
+        # give up fast and surface _MSG_TIMED_OUT to on_delivery — the visible
+        # failure the broker-kill demo wants on screen.
+        conf["message.timeout.ms"] = message_timeout_ms
+    producer = Producer(conf)
 
     per_partition: dict[int, int] = {}
     errors = 0
@@ -117,7 +127,11 @@ if __name__ == "__main__":
     p.add_argument("--rate", type=float, default=100.0,
                    help="msgs/sec pacing; 0 = as fast as possible")
     p.add_argument("--keyless", action="store_true", help="key=None (sticky partitioner)")
+    p.add_argument("--message-timeout", type=int, default=None, metavar="MS",
+                   help="producer message.timeout.ms; a low value (e.g. 10000) makes "
+                        "the broker-kill demo surface _MSG_TIMED_OUT instead of "
+                        "retrying silently for 5 minutes")
     args = p.parse_args()
     if args.count is None and args.rate <= 0:
         p.error("--rate must be > 0 for continuous mode")
-    run(args.count, args.rate, args.keyless)
+    run(args.count, args.rate, args.keyless, args.message_timeout)

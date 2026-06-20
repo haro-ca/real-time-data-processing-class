@@ -25,8 +25,10 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 html,body{height:100%;overflow-x:hidden;background:var(--paper);color:var(--ink);font-family:var(--sans);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+html{-ms-overflow-style:none;scrollbar-width:none}
 
 /* ---- slide shell ---- */
 .slide{
@@ -809,17 +811,20 @@ consumer.<span class="fn">subscribe</span>([<span class="s">"orders"</span>], on
     <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">Producer runs continuously. Consumer A owns all 6 partitions; B joins (rebalance one), then B dies (rebalance two). Run it twice: with the <span class="ink-mono">on_revoke</span> commit, and with <span class="ink-mono">--skip-revoke-commit</span>. Predict the duplicate count for each.</p>
     <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">$ uv run python src/consume_rebalance.py  [--skip-revoke-commit]</span></div>
-      <div class="code-body"><span class="cm">with on_revoke commit:</span>
-REVOKED P3,P4,P5 &rarr; committed P3@2052 P4@2049 P5@2051
-B resumes at 2052/2050/2052 &rarr; duplicates: <span class="n">0</span>
+      <div class="code-body"><span class="cm"># B is SIGKILLed both runs &mdash; a crashed consumer can't</span>
+<span class="cm"># commit on the way out, so SOME duplicates are unavoidable.</span>
+
+<span class="cm">correct on_revoke commit:</span>
+  REVOKED P0,P1,P2 &rarr; committed P0@9861 P1@18256 P2@5768
+  duplicates <span class="n">~83</span>    lost <span class="n">0</span>
 
 <span class="cm">--skip-revoke-commit:</span>
-REVOKED P3,P4,P5 &rarr; <span class="r">nothing committed since last batch</span>
-B resumes at last commit (1840) &rarr; duplicates: <span class="r">212 reprocessed</span></div>
+  REVOKED P0,P1,P2 &rarr; <span class="r">commit SKIPPED (in-flight abandoned)</span>
+  duplicates <span class="r">~101</span>   lost <span class="n">0</span></div>
     </div>
     <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <span class="ctxt">Nothing was lost either way &mdash; at-least-once held. The difference is <strong>212 duplicates</strong> handed to your sink. If that sink is idempotent (L4, L5), you survive your own mistake. This experiment, done correctly, <em>is</em> the take-home.</span>
+      <span class="ctxt"><strong>Nothing is ever LOST</strong> &mdash; at-least-once held both times. Even correct callbacks leave a few duplicates: B is killed and can&rsquo;t commit on the way out, so its in-flight work always replays. Skipping the revoke commit just adds <em>more</em> (the clean handoff&rsquo;s in-flight, too). The lesson isn&rsquo;t &ldquo;zero&rdquo; &mdash; it&rsquo;s <strong>lost=0 plus an idempotent sink</strong> (L4, L5) that makes replays harmless. That discipline is the take-home.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
