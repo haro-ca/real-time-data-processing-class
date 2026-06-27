@@ -62,6 +62,27 @@ def iso(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
 
+def fmt_watermark(wm) -> str:
+    """Render Spark's watermark in LOCAL time so it lines up with the window
+    timestamps in the console.
+
+    Spark reports eventTime.watermark as an ISO-8601 *UTC* string, but the console
+    sink prints window start/end in the SESSION zone (local). Showing the watermark
+    raw (UTC) next to local windows looks off by your UTC offset — a correct value
+    that reads as a bug. The first micro-batches report the epoch (1970): that's
+    Spark's 'no watermark yet', shown here as a dash rather than a 1970 timestamp.
+    """
+    if not wm:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(str(wm).replace("Z", "+00:00"))
+    except ValueError:
+        return str(wm)
+    if dt.year < 2000:                     # epoch-0 sentinel: watermark not advanced yet
+        return "— not set yet"
+    return dt.astimezone().strftime("%H:%M:%S")
+
+
 # ── Teaching narration (deliberately non-standard logs) ──────────────────────
 # These demos talk to the student: banner() up front says what's about to happen
 # and what to watch; lesson() at the end names the one idea the run just showed.
@@ -229,11 +250,15 @@ class ProgressPump(threading.Thread):
             with PROGRESS_FILE.open("a") as fh:
                 fh.write(json.dumps(s) + "\n")
             if self.echo:
-                print(f"  progress · batch {s['batchId']:>3} · "
-                      f"in {s['processedRowsPerSecond']:>6}/s · "
-                      f"state {s['numRowsTotal']:>5} rows · "
-                      f"dropped(batch) {s['numRowsDroppedByWatermark']:>4} · "
-                      f"wm {s['watermark']}")
+                dropped = s['numRowsDroppedByWatermark']
+                dropped_str = f"{dropped:>4}" if dropped == 0 else f"[{dropped:>3}]"
+                # Watermark in LOCAL time so it lines up with the console's window
+                # timestamps (Spark prints those in the session zone, not UTC).
+                print(f"  Batch {s['batchId']:>3} | "
+                      f"Throughput: {s['processedRowsPerSecond']:>6}/s | "
+                      f"State: {s['numRowsTotal']:>4} rows | "
+                      f"Dropped: {dropped_str} | "
+                      f"Watermark: {fmt_watermark(s['watermark'])}")
 
     def stop(self):
         self._stop.set()

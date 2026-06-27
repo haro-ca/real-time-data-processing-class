@@ -19,13 +19,13 @@ import argparse
 import json
 import time
 
-from config import PROGRESS_FILE, banner, lesson
+from config import PROGRESS_FILE, banner, fmt_watermark, lesson
 
 
 def fmt(s: dict, dropped_total: int) -> str:
     return (
         f"batch {s['batchId']:>4}   input {s['inputRowsPerSecond']:>7}/s   "
-        f"processed {s['processedRowsPerSecond']:>7}/s   wm {s['watermark']}\n"
+        f"processed {s['processedRowsPerSecond']:>7}/s   wm {fmt_watermark(s['watermark'])}\n"
         f"  state:  numRowsTotal              {s['numRowsTotal']:>7,}   "
         f"(open windows being remembered)\n"
         f"          numRowsUpdated            {s['numRowsUpdated']:>7,}\n"
