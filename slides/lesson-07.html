@@ -743,11 +743,12 @@ log messages:           <span class="r">none</span>
       <div class="code-body">batch 47   input 312 rows/s   processed 298 rows/s
 state:     numRowsTotal   <span class="g">1,204</span>     <span class="cm"># open windows being remembered</span>
            numRowsUpdated <span class="g">96</span>
-           <span class="r">numRowsDroppedByWatermark  50</span>   <span class="cm">&larr; the $49,999.50, found</span></div>
+           <span class="r">numRowsDroppedByWatermark   1</span>   <span class="cm"># 50 late orders, ONE window = 1 group</span>
+<span class="cm"># it counts dropped GROUPS, not events &mdash; the $49,999.50 hides in a hot key</span></div>
     </div>
     <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
-      <span class="ctxt">Every block of this course ends at one operational number: TPS (L1), slot lag (L5), consumer lag (L6) &mdash; and now <span class="ink-mono">numRowsDroppedByWatermark</span>. Zero means your lateness allowance is generous enough. Nonzero means you&rsquo;re shipping wrong numbers, <strong>knowingly</strong> &mdash; which is a business decision, not a bug, the moment you can see the counter.</span>
+      <span class="ctxt">Every block of this course ends at one operational number: TPS (L1), slot lag (L5), consumer lag (L6) &mdash; and now <span class="ink-mono">numRowsDroppedByWatermark</span>. Zero means your lateness allowance is generous enough. Nonzero means you&rsquo;re shipping wrong numbers, <strong>knowingly</strong> &mdash; a business decision, not a bug. One caveat that <em>is</em> the lesson: it counts dropped <strong>aggregation groups</strong>, not events &mdash; 50 late orders in one window read as <strong>+1</strong>. Treat it as a tripwire (zero vs nonzero); recover the lost dollars with the batch audit.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
