@@ -63,6 +63,14 @@ def create_topics(reset: bool) -> None:
             try:
                 f.result(timeout=30)
                 print(f"  created '{topic}' ({label})")
+                print(f"  schema for '{topic}':")
+                print(f"    partitions: {new_topic.num_partitions}")
+                print(f"    replication_factor: {new_topic.replication_factor}")
+                if new_topic.config:
+                    for k, v in new_topic.config.items():
+                        print(f"    {k}: {v}")
+                else:
+                    print(f"    cleanup.policy: delete")
             except Exception as e:
                 if "TOPIC_ALREADY_EXISTS" in str(e):
                     print(f"  '{topic}' already exists")
