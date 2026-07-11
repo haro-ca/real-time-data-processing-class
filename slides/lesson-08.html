@@ -95,6 +95,9 @@ h2 em.hot,h1 em.hot{color:var(--ember)}
   background:rgba(92,214,232,0.05);border-bottom:1px solid var(--line)}
 .code-dot{width:7px;height:7px;border-radius:50%;background:var(--line-strong)}
 .code-label{margin-left:auto;font-family:var(--mono);font-size:clamp(0.5rem,0.78vw,0.62rem);color:var(--muted)}
+.code-copy{background:var(--panel2);border:1px solid var(--line-strong);color:var(--text);font-family:var(--mono);font-size:clamp(0.45rem,0.7vw,0.58rem);padding:0.18em 0.65em;border-radius:4px;cursor:pointer;transition:background .15s,color .15s}
+.code-copy:hover{background:var(--line-strong);color:var(--cyan)}
+.code-copy.copied{color:var(--cyan)}
 .code-body{padding:clamp(0.5rem,1vh,0.85rem) clamp(0.7rem,1.3vw,1.1rem);font-family:var(--mono);
   font-size:clamp(0.55rem,0.92vw,0.72rem);line-height:1.62;color:#c4ccd4;white-space:pre;overflow:hidden;text-align:left}
 .k{color:#7fb4e8}.s{color:#d8b478}.fn{color:#e7eaee}.v{color:#9fb6c9}
@@ -671,16 +674,24 @@ ON CONFLICT (transaction_id) DO UPDATE SET
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker reveal">Setup</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">One Kafka, one Postgres, one command.</h2>
-    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+    <div class="code-block reveal" data-copy="cd src-lesson8
+docker compose up -d
+uv sync
+uv run python src/setup_topics.py" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">shell</span></div>
       <div class="code-body"><span class="v">$</span> cd src-lesson8
 <span class="v">$</span> docker compose up -d
 <span class="v">$</span> uv sync
-<span class="v">$</span> uv run python src/setup_topics.py</div>
+<span class="v">$</span> uv run python src/setup_topics.py
+<span class="v">$</span> uv run python src/setup_topics.py --no-reset  <span class="cm"># optional: keep topics if they already exist</span></div>
     </div>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       <span class="ctxt">Docker Compose starts a Kafka broker on <span class="ink-mono">localhost:19092</span> and Postgres on <span class="ink-mono">localhost:5432</span> with the <span class="ink-mono">enriched_transactions</span> table ready. The first Spark run downloads the Kafka and Postgres JDBC jars from Maven; it is slow once, cached after.</span>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt"><strong>setup_topics.py resets by default</strong> &mdash; it deletes and recreates the topics. If you have a previous <span class="ink-mono">ckpt/</span> directory, reset the topics <em>and</em> delete <span class="ink-mono">ckpt/</span>, or Spark will resume from stale offsets and fail. Use <span class="ink-mono">--no-reset</span> to keep existing topics and avoid this.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
@@ -1166,6 +1177,31 @@ window.addEventListener('keydown',(e)=>{
   else if(e.key==='r'||e.key==='R'){slides[current()].querySelectorAll('.spoiler').forEach(s=>s.classList.add('revealed'));}
 });
 document.querySelectorAll('.spoiler').forEach(s=>s.addEventListener('click',()=>s.classList.add('revealed')));
+
+// Add copy-to-clipboard buttons to code blocks that have a data-copy snippet
+document.querySelectorAll('.code-block[data-copy]').forEach(block => {
+  const header = block.querySelector('.code-header');
+  if (!header) return;
+  const btn = document.createElement('button');
+  btn.className = 'code-copy';
+  btn.type = 'button';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = block.getAttribute('data-copy') || '';
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 1500);
+    }).catch(() => {
+      btn.textContent = 'failed';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    });
+  });
+  header.appendChild(btn);
+});
 </script>
 
 </body>
