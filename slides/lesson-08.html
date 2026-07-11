@@ -210,7 +210,7 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
      ════════════════════════════════════════════════════════════ -->
 
 <!-- ─── 01 · TITLE ─────────────────────────────────────── -->
-<section class="slide visible deep" id="s1">
+<section class="slide visible deep" id="s1" data-speaker="Open by connecting Lesson 7 to Lesson 8: same Source -> operators -> sink, but the operator now remembers. The kill test is the proof that the state survives.">
   <div class="crumbs reveal">
     <span class="crumb">07 Windows</span>
     <span class="crumb on">08 State</span>
@@ -411,8 +411,8 @@ compacted topic = Kafka keeps only the latest value per key
       <div class="code-body">1. read previous state (from checkpoint store)
 2. process new micro-batch
 3. write updated state as a new version
-4. commit offset to checkpoint
-5. write output to sink
+4. write output to sink
+5. commit offset to checkpoint
 
 <span class="cm"># crash between 4 and 5? on restart replay the same batch</span>
 <span class="cm"># same state version + same offset = deterministic result</span></div>
@@ -427,7 +427,7 @@ compacted topic = Kafka keeps only the latest value per key
 </section>
 
 <!-- ─── 09 · PROCESSING VS DELIVERY ────────────────────── -->
-<section class="slide deep" id="s9">
+<section class="slide deep" id="s9" data-speaker="This is the critical lesson: exactly-once processing is a property of the engine, not the delivery. The sink still sees duplicates unless it is idempotent or transactional. The rest of the deck is how to make the duplicate harmless.">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker hot reveal">Hour 1 &middot; the critical gap</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Exactly-once <em>processing</em> ≠ exactly-once <em>delivery.</em></h2>
@@ -646,6 +646,38 @@ enriched = transactions.join(customers, on="customer_id", how="left")</div>
   <div class="meta"><span>THE SINK</span><span>ON CONFLICT &middot; idempotent upsert</span></div>
 </section>
 
+<!-- ─── 20 · AGGREGATE PHASE ───────────────────────────── -->
+<section class='slide' id='s20a' data-speaker='This is the genuinely stateful job. Per-customer running sums live in the state store, and the checkpoint commits both offsets and state. The kill test must prove the sums are exact, not just the count of upserts.'>
+  <div class='slide-content' style='max-width:min(92vw,900px);margin:0 auto;'>
+    <div class='section-marker reveal'>Phase 5 &middot; streaming_aggregate.py</div>
+    <h2 class='reveal' style='margin-top:clamp(0.4rem,1vh,0.8rem);'>The stateful job: <em>windowed aggregates.</em></h2>
+    <div class='code-block reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;'>
+      <div class='code-header'><span class='code-dot'></span><span class='code-dot'></span><span class='code-dot'></span><span class='code-label'>streaming_aggregate.py</span></div>
+      <div class='code-body'>from pyspark.sql.functions import col, count as f_count, sum as f_sum, window
+
+aggregates = (transactions
+    .withColumn('amount', col('amount').cast('decimal(12,2)'))
+    .withWatermark('transaction_time', '30 seconds')
+    .groupBy(window('transaction_time', '1 minute'), 'customer_id')
+    .agg(f_count('*').alias('txn_count'),
+         f_sum('amount').alias('total_amount')))
+
+query = (aggregates.writeStream
+    .outputMode('update')
+    .foreachBatch(write_aggregates)
+    .option('checkpointLocation', 'ckpt/aggregate')
+    .trigger(processingTime='10 seconds')
+    .start())</div>
+    </div>
+    <div class='callout note reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <svg class='ico' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>
+      <span class='ctxt'>This is a <strong>truly stateful</strong> query: per-customer per-minute running sums live in the state store. The checkpoint commits both offsets and state. After a <span class='term'>kill -9</span>, the sums must be exact — an upsert alone cannot repair a wrong sum.</span>
+    </div>
+  </div>
+  <hr class='rule' style='margin-bottom:0.7rem;'>
+  <div class='meta'><span>PHASE 5</span><span>state store + watermark + upsert</span></div>
+</section>
+
 <!-- ─── 20 · HAPPY PATH ────────────────────────────────── -->
 <section class="slide" id="s20">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
@@ -653,14 +685,18 @@ enriched = transactions.join(customers, on="customer_id", how="left")</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Check the sink before you kill it.</h2>
     <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">uv run python src/verify.py</span></div>
-      <div class="code-body">Postgres rows:         1,247
-Duplicates:            0
-Missing enrichment:    0
-Produced count:        1,247
+      <div class='code-body'>Postgres rows:             1,247
+Duplicates:                0
+Missing enrichment:        0
+Produced count:            1,247
+Aggregate windows checked: 1,234
+Missing windows:           0
+Mismatched sums/counts:    0
 
-<span class="n">✓ no duplicates</span>
-<span class="n">✓ all rows enriched</span>
-<span class="n">✓ Postgres count matches produced count</span></div>
+<span class='n'>✓ no duplicates</span>
+<span class='n'>✓ all rows enriched</span>
+<span class='n'>✓ Postgres count matches produced count</span>
+<span class='n'>✓ streaming aggregates match batch recomputation</span></div>
     </div>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -676,23 +712,24 @@ Produced count:        1,247
   <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,780px);margin:0 auto;">
     <div class="kicker reveal" style="color:var(--ember);">Part three</div>
     <h2 class="reveal" style="font-size:clamp(2rem,5.5vw,3.6rem);margin-top:0.6rem;">Kill it.</h2>
-    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">The pass/fail test. Hard kill the Spark driver while the transaction generator keeps running. Restart the job with the same checkpoint. Prove the count is still right and the duplicates are still zero.</p>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">The pass/fail test. Hard kill either Spark driver while the transaction generator keeps running. Restart the job with the same checkpoint. Prove the join counts, the aggregate sums, and the duplicate counts are still zero.</p>
   </div>
   <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>KILL AND RESTART</span><span>kill -9 &middot; restart &middot; verify</span></div>
 </section>
 
 <!-- ─── 22 · KILL PROTOCOL ─────────────────────────────── -->
-<section class="slide" id="s22">
+<section class="slide" id="s22" data-speaker="Demonstrate live. Run both jobs, show verify.py passes, then kill -9 one driver. Show the transaction generator continues, restart, and run verify.py again. The counts and sums must match and duplicates must be zero.">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker hot reveal">Break 01 &middot; the protocol</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Run it, kill it, restart it, prove it.</h2>
     <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
       <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">kill-and-restart protocol</span></div>
-      <div class="code-body">1. run verify.py and record the count (pre-kill)
-2. find Spark driver PID: ps aux | grep lesson8-stateful-join
+      <div class="code-body">1. run verify.py and record both join and aggregate counts (pre-kill)
+2. find Spark driver PID: ps aux | grep lesson8-stateful
 3. kill -9 &lt;pid&gt;
 4. keep transaction generator running for 60s
 5. restart: uv run python src/streaming_join.py
+   (or uv run python src/streaming_aggregate.py)
 6. wait for catch-up, run verify.py again</div>
     </div>
     <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
@@ -716,6 +753,7 @@ Produced count:        1,247
         <tr><td><span class="ink-mono">missing rows</span></td><td>postgres count &lt; produced</td><td>checkpoint lost or wrong startingOffsets</td></tr>
         <tr><td><span class="ink-mono">missing enrichment</span></td><td>customer_name is null</td><td>customer snapshot loaded before seed</td></tr>
         <tr><td><span class="ink-mono">checkpoint error</span></td><td>Spark refuses to start</td><td>two queries shared the same checkpoint dir</td></tr>
+        <tr><td><span class="ink-mono">aggregate mismatch</span></td><td>customer_activity sums != expected</td><td>watermark too low or state lost</td></tr>
         <tr><td><span class="ink-mono">no failure shown</span></td><td>duplicates stay 0</td><td>you used kill -15 instead of kill -9</td></tr>
       </tbody>
     </table>
@@ -813,13 +851,14 @@ Postgres count: 1,564 > produced 1,547  # impossible without upsert</div>
     <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A repository that runs the Lesson 8 pipeline and survives a <span class="term">kill -9</span> with zero duplicates and zero loss.</p>
     <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
       <li><strong>Compated customer topic</strong> and the snapshot join at startup.</li>
-      <li><strong>Idempotent Postgres sink</strong> with the <span class="ink-mono">transaction_id</span> primary key.</li>
-      <li><strong>Kill-and-restart proof</strong> in the README: pre-kill count, post-restart count, duplicates = 0.</li>
+      <li><strong>Idempotent Postgres sinks</strong> for both <span class="ink-mono">enriched_transactions</span> and <span class="ink-mono">customer_activity</span>.</li>
+      <li><strong>Streaming aggregate</strong> that keeps running sums in the state store.</li>
+      <li><strong>Kill-and-restart proof</strong> in the README: pre-kill and post-restart counts match, duplicates = 0, aggregate sums = 0.</li>
       <li><strong>AGENTS.md</strong> explaining the architecture and the common gotchas.</li>
     </ul>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      <span class="ctxt">The grader starts the pipeline, runs for a few minutes, hard-kills the Spark driver, restarts it, and runs <span class="ink-mono">verify.py</span>. The output must show exactly the same number of rows as produced, with zero duplicates.</span>
+      <span class="ctxt">The grader starts the pipeline, runs for a few minutes, hard-kills the Spark driver, restarts it, and runs <span class="ink-mono">verify.py</span>. The output must show exactly the same number of rows as produced, zero duplicates, and zero aggregate mismatch.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
@@ -838,6 +877,7 @@ Postgres count: 1,564 > produced 1,547  # impossible without upsert</div>
 <span class="v">$</span> uv run python src/seed_customers.py
 <span class="v">$</span> uv run python src/seed_transactions.py --tps 50
 <span class="v">$</span> uv run python src/streaming_join.py
+<span class="v">$</span> uv run python src/streaming_aggregate.py
 <span class="v">$</span> uv run python src/verify.py
 <span class="v">$</span> # in another terminal, kill -9 the Spark driver, then restart</div>
     </div>
@@ -865,6 +905,10 @@ Postgres count: 1,564 > produced 1,547  # impossible without upsert</div>
       <span class="pcmd">Write verify.py that counts enriched_transactions, counts duplicates by transaction_id, counts rows with null customer_name, and compares the total to data/produced.json.</span>
     </div>
     <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">aggregate</span>
+      <span class="pcmd">Write a second PySpark Structured Streaming job that reads the same transactions topic, computes per-customer per-minute txn_count and total_amount with a 30-second watermark, and upserts into a Postgres customer_activity table using ON CONFLICT (customer_id, window_start). Use checkpointLocation ckpt/aggregate.</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
       <span class="plabel">kill test</span>
       <span class="pcmd">Write a script that runs the Spark job, waits for it to ingest some transactions, sends kill -9 to the driver, waits, restarts it, and asserts that verify.py still shows duplicates = 0 and Postgres count matches produced.</span>
     </div>
@@ -885,7 +929,8 @@ Postgres count: 1,564 > produced 1,547  # impossible without upsert</div>
         <tr><td><span class="ink-mono">seed_customers.py</span></td><td>Seed 1,000 customers and update 5 every 5s</td><td>16</td></tr>
         <tr><td><span class="ink-mono">seed_transactions.py</span></td><td>Generate transaction stream, records produced count</td><td>17</td></tr>
         <tr><td><span class="ink-mono">streaming_join.py</span></td><td>Stream-static join + idempotent upsert</td><td>18–19</td></tr>
-        <tr><td><span class="ink-mono">verify.py</span></td><td>Count, duplicate, and enrichment checks</td><td>20</td></tr>
+        <tr><td><span class="ink-mono">streaming_aggregate.py</span></td><td>Windowed per-customer aggregate + idempotent upsert</td><td>20a</td></tr>
+        <tr><td><span class="ink-mono">verify.py</span></td><td>Count, duplicate, enrichment, and aggregate checks</td><td>21</td></tr>
       </tbody>
     </table>
     <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
@@ -895,6 +940,50 @@ Postgres count: 1,564 > produced 1,547  # impossible without upsert</div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
   <div class="meta"><span>ANNEX &middot; SCRIPTS</span><span>src-lesson8/src/</span></div>
+</section>
+
+<!-- ─── 32 · ANNEX · STREAM-TABLE VS STREAM-STREAM ─────── -->
+<section class='slide' id='s32' data-speaker='Emphasize that the demo is stream-table, not stream-stream. Stream-table is the right pattern for slowly-changing lookup data. Stream-stream is far harder because both sides are unbounded and events can arrive out of order on either side.'>
+  <div class='slide-content' style='max-width:min(92vw,900px);margin:0 auto;'>
+    <div class='kicker reveal'>Annex</div>
+    <h2 class='reveal' style='margin-top:clamp(0.3rem,0.8vh,0.6rem);'>Stream-table vs stream-stream join.</h2>
+    <table class='dtable reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <thead><tr><th>Join</th><th>Lookup side</th><th>When to use</th><th>Hard part</th></tr></thead>
+      <tbody>
+        <tr><td><span class='ink-mono'>stream-table</span></td><td>compacted topic loaded as batch snapshot at startup</td><td>slowly-changing dimensions: customers, products, regions</td><td>snapshot is stale until restart; updates ignored at runtime</td></tr>
+        <tr><td><span class='ink-mono'>stream-stream</span></td><td>another unbounded event stream</td><td>matching events that arrive at different times: order + shipment</td><td>both sides need watermarks; join window must be bounded</td></tr>
+      </tbody>
+    </table>
+    <div class='callout note reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <svg class='ico' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>
+      <span class='ctxt'>Lesson 8 uses a stream-table join because the teaching point is checkpoint + state + idempotent sink. Adding a stream-stream join would introduce interval conditions and dual watermarks and distract from the core goal.</span>
+    </div>
+  </div>
+  <hr class='rule' style='margin-bottom:0.7rem;'>
+  <div class='meta'><span>ANNEX &middot; JOINS</span><span>stream-table is the right simplification</span></div>
+</section>
+
+<!-- ─── 33 · ANNEX · DELIVERY GUARANTEES ────────────────── -->
+<section class='slide' id='s33' data-speaker='This is the cheat sheet. The key insight is that exactly-once processing is a property of the engine, but exactly-once delivery is only possible if the sink is idempotent or transactional. The lesson proves the practical case: replay + idempotent sink = effectively once.'>
+  <div class='slide-content' style='max-width:min(92vw,900px);margin:0 auto;'>
+    <div class='kicker reveal'>Annex</div>
+    <h2 class='reveal' style='margin-top:clamp(0.3rem,0.8vh,0.6rem);'>Delivery guarantees cheat sheet.</h2>
+    <table class='dtable reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <thead><tr><th>Guarantee</th><th>Meaning</th><th>Requires</th></tr></thead>
+      <tbody>
+        <tr><td><span class='ink-mono'>at-most-once</span></td><td>events may be lost, never duplicated</td><td>no retries; simple but unsafe</td></tr>
+        <tr><td><span class='ink-mono'>at-least-once</span></td><td>events may be duplicated, never lost</td><td>replayable source + acknowledgment</td></tr>
+        <tr><td><span class='ink-mono'>exactly-once processing</span></td><td>engine state is deterministic after recovery</td><td>replayable source + checkpointed state + deterministic operators</td></tr>
+        <tr><td><span class='ink-mono'>effectively-once delivery</span></td><td>end-to-end result is as if each event arrived once</td><td>exactly-once processing + idempotent or transactional sink</td></tr>
+      </tbody>
+    </table>
+    <div class='callout proof reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <svg class='ico' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' stroke-width='2' stroke-linecap='round'><path d='M20 6 9 17l-5-5'/></svg>
+      <span class='ctxt'>The lesson proves the bottom row: replayable Kafka + checkpointed Spark + idempotent Postgres = <strong>effectively once</strong>.</span>
+    </div>
+  </div>
+  <hr class='rule' style='margin-bottom:0.7rem;'>
+  <div class='meta'><span>ANNEX &middot; GUARANTEES</span><span>effectively once = replay + idempotent sink</span></div>
 </section>
 
 <script>
