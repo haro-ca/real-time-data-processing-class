@@ -81,6 +81,7 @@ def run(customer_count: int, tps: int, duration: int | None) -> None:
                          value=json.dumps(txn).encode("utf-8"))
         producer.poll(0)
         produced += 1
+        print(f"tx {produced:>6} {txn['transaction_id']} {txn['customer_id']} {txn['amount']:>9.2f} {txn['currency']}")
         time.sleep(interval)
 
         if produced % 100 == 0:

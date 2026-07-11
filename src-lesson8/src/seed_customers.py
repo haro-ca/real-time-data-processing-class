@@ -76,6 +76,7 @@ def run(count: int, update_interval: float, updates_per_batch: int) -> None:
                 producer.produce(CUSTOMERS_TOPIC,
                                  key=c["customer_id"].encode("utf-8"),
                                  value=json.dumps(c).encode("utf-8"))
+                print(f"update {c['customer_id']}: tier={c['tier']}, region={c['region']}")
             producer.flush()
             time.sleep(update_interval)
     except KeyboardInterrupt:
