@@ -111,6 +111,7 @@ def run(count: int, span_min: float, late_fraction: float, late_mean: float,
     errors = 0
     late_count = 0
     lateness_hist = Counter()   # minutes-late bucket → n
+    sample_orders = []          # capture first 10 for inspection
 
     def on_delivery(err, _msg):
         nonlocal delivered, errors
@@ -139,6 +140,8 @@ def run(count: int, span_min: float, late_fraction: float, late_mean: float,
             "status": random.choice(STATUSES),
             "created_at": iso(datetime.fromtimestamp(event_ts)),
         }
+        if len(sample_orders) < 10:
+            sample_orders.append(order)
         producer.produce(TOPIC,
                          key=str(order["customer_id"]).encode(),
                          value=json.dumps(order).encode(),
@@ -147,6 +150,9 @@ def run(count: int, span_min: float, late_fraction: float, late_mean: float,
 
     producer.flush(60)                         # drain before exit — not optional
     print(f"\ndelivered {delivered:,} ({errors} errors), of which {late_count:,} late")
+    print("\nSample 10 orders:")
+    for i, order in enumerate(sample_orders, 1):
+        print(f"  {i}. {json.dumps(order, indent=2)}")
     if lateness_hist:
         print("lateness (minutes → count), the watermark sweep will eat the left tail:")
         for m in sorted(lateness_hist):

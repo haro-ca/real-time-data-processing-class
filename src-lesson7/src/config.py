@@ -255,7 +255,7 @@ class ProgressPump(threading.Thread):
                 # Watermark in LOCAL time so it lines up with the console's window
                 # timestamps (Spark prints those in the session zone, not UTC).
                 print(f"  Batch {s['batchId']:>3} | "
-                      f"Throughput: {s['processedRowsPerSecond']:>6}/s | "
+                      f"Throughput: {s['processedRowsPerSecond']:>6} rows/s | "
                       f"State: {s['numRowsTotal']:>4} rows | "
                       f"Dropped: {dropped_str} | "
                       f"Watermark: {fmt_watermark(s['watermark'])}")
