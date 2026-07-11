@@ -294,12 +294,38 @@ replay from event 950:  count = 50     <span class="r">wrong</span>
   <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
     <div class="section-marker reveal">Hour 1 &middot; the universal shape</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Source &rarr; operator &rarr; state &rarr; sink.</h2>
-    <div class="arch reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);">
-Kafka source  ──>  parse  ──>  join/aggregate/session  ──>  sink
-                              │
-                              ▼
-                         checkpoint store
-              (offsets + state versions, atomically)</div>
+    <div class='arch reveal' style='margin-top:clamp(0.6rem,1.5vh,1rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 980 196' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Stream topology: source, then stateless parse and filter, then a stateful windowed aggregate, then sink'>
+  <defs>
+    <marker id='l8arrow' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <g stroke='#5cd6e8' stroke-width='2'>
+    <line x1='158' y1='80' x2='186' y2='80' marker-end='url(#l8arrow)'/>
+    <line x1='316' y1='80' x2='334' y2='80' marker-end='url(#l8arrow)'/>
+    <line x1='464' y1='80' x2='482' y2='80' marker-end='url(#l8arrow)'/>
+    <line x1='726' y1='80' x2='754' y2='80' marker-end='url(#l8arrow)'/>
+  </g>
+  <rect x='6' y='48' width='152' height='64' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='82' y='76' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Kafka topic</text>
+  <text x='82' y='96' text-anchor='middle' fill='#67737f' font-size='10.5' letter-spacing='0.12em'>SOURCE</text>
+  <rect x='192' y='48' width='124' height='64' rx='8' fill='#151c25' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='254' y='85' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='600'>parse</text>
+  <rect x='340' y='48' width='124' height='64' rx='8' fill='#151c25' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='402' y='85' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='600'>filter</text>
+  <rect x='488' y='48' width='238' height='64' rx='8' fill='rgba(255,110,84,0.09)' stroke='#ff6e54' stroke-width='1.5'/>
+  <text x='607' y='85' text-anchor='middle' fill='#ffd2c7' font-size='15' font-weight='600'>window + aggregate</text>
+  <rect x='760' y='48' width='214' height='64' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='867' y='76' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>console · Kafka · DB</text>
+  <text x='867' y='96' text-anchor='middle' fill='#67737f' font-size='10.5' letter-spacing='0.12em'>SINK</text>
+  <path d='M192,126 L192,136 L464,136 L464,126' fill='none' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='328' y='158' text-anchor='middle' fill='#5cd6e8' font-size='12.5' font-weight='700' letter-spacing='0.1em'>STATELESS</text>
+  <text x='328' y='176' text-anchor='middle' fill='#aab4bf' font-size='11.5'>no memory between events</text>
+  <path d='M488,126 L488,136 L726,136 L726,126' fill='none' stroke='#ff6e54' stroke-width='1.5'/>
+  <text x='607' y='158' text-anchor='middle' fill='#ff6e54' font-size='12.5' font-weight='700' letter-spacing='0.1em'>STATEFUL</text>
+  <text x='607' y='176' text-anchor='middle' fill='#aab4bf' font-size='11.5'>remembers across events · survives crashes → L8</text>
+</svg></div>
     <ul class="bullets reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);max-width:820px;">
       <li><strong>Stateless</strong> operators (<span class="ink-mono">map</span>, <span class="ink-mono">filter</span>): still no checkpoint state; replay anywhere gives the same output.</li>
       <li><strong>Stateful</strong> operators (aggregations, joins, sessions): must snapshot state and offsets together so a restart resumes from a consistent point.</li>
