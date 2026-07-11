@@ -39,6 +39,9 @@ src-lesson6/data/
 # Lesson 7 — generated progress jsonl + Spark checkpoints (offsets + window state)
 src-lesson7/data/
 src-lesson7/ckpt/
+# Lesson 8 — generated produced count, progress log, and Spark checkpoints
+src-lesson8/data/
+src-lesson8/ckpt/
 *.duckdb
 *.duckdb.wal
 _tmp_load.csv

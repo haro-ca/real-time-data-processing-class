@@ -1,0 +1,10 @@
+[project]
+name = "lesson8-stateful"
+version = "0.1.0"
+description = "Lesson 8: Stateful stream processing and exactly-once delivery"
+requires-python = ">=3.10"
+dependencies = [
+    "pyspark==4.0.1",
+    "confluent-kafka>=2.6.0",
+    "psycopg>=3.1",
+]
