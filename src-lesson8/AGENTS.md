@@ -3,22 +3,28 @@
 ## What this code does
 
 `src-lesson8` demonstrates stateful stream processing with end-to-end fault
-tolerance. A PySpark Structured Streaming job reads transactions from a Kafka
-topic, enriches them with a compacted Kafka topic of customer data, and writes
-the results to a Postgres table using `ON CONFLICT ... DO UPDATE` upserts. The
-key teaching goal is the kill-and-restart test: after `kill -9` on the Spark
-driver, the restarted job must resume without duplicates and without loss.
+tolerance. Two PySpark Structured Streaming jobs read transactions from Kafka:
+`streaming_join.py` enriches them with a compacted customer topic and upserts
+into Postgres; `streaming_aggregate.py` maintains per-customer per-minute
+windowed aggregates in the Spark state store and upserts them into
+`customer_activity`. The key teaching goal is the kill-and-restart test: after
+`kill -9` on a Spark driver, the restarted job must resume without duplicates,
+without loss, and with exact aggregate sums (proving state store recovery).
 
 ## Project layout
 
 - `docker-compose.yml` — Kafka (KRaft, single-node) and Postgres.
-- `init.sql` — `enriched_transactions` table with primary key on `transaction_id`.
+- `init.sql` — `enriched_transactions` (PK `transaction_id`) and
+  `customer_activity` (PK `customer_id, window_start`) tables.
 - `src/config.py` — shared constants, SparkSession builder, Kafka/Postgres helpers.
 - `src/setup_topics.py` — create `transactions` and compacted `customers` topics.
 - `src/seed_customers.py` — seed 1,000 customers and update a few every 5s.
 - `src/seed_transactions.py` — steady transaction stream, records `produced` count.
 - `src/streaming_join.py` — Spark stream-static join + upsert `foreachBatch` sink.
-- `src/verify.py` — count check, duplicate check, and comparison to `produced`.
+- `src/streaming_aggregate.py` — genuinely stateful windowed aggregation
+  (watermark + update mode) upserting into `customer_activity`.
+- `src/verify.py` — count check, duplicate check, comparison to `produced`, and
+  batch recomputation of the streaming aggregates.
 
 ## Key conventions
 
@@ -29,13 +35,18 @@ driver, the restarted job must resume without duplicates and without loss.
 - `streaming_join.py` uses a **stream-static join** (the recommended path for
   the exercise). It loads a snapshot of the `customers` topic when the app
   starts, so later customer updates are not visible until the job is restarted.
-- The `checkpointLocation` is `ckpt/join`. Deleting it resets the job to `earliest`.
+- `streaming_aggregate.py` is the truly stateful job: sums live in the state
+  store between micro-batches, and `amount` is cast to `decimal(12,2)` before
+  summing so streaming sums match Postgres batch recomputation exactly.
+- Checkpoints: `ckpt/join` and `ckpt/aggregate` (one per query, never shared).
+  Deleting a checkpoint resets that job to `earliest`.
 
 ## How to verify correctness
 
 Run the pipeline, then run `verify.py` before and after a `kill -9` on the Spark
-driver. The duplicate count must be zero and the Postgres count must match the
-number of unique transactions produced.
+driver. The duplicate count must be zero, the Postgres count must match the
+number of unique transactions produced, and the streaming aggregates must match
+the batch recomputation (0 missing, 0 mismatched windows).
 
 ## Common gotchas
 
@@ -47,3 +58,7 @@ number of unique transactions produced.
   end-offsets instead.
 - The first Spark run downloads the Kafka and Postgres JDBC JARs from Maven,
   which can take a minute.
+- `init.sql` only runs on a fresh Postgres volume. `streaming_aggregate.py`
+  creates `customer_activity` itself if it is missing, so existing volumes work.
+- `verify.py` only compares aggregate windows that closed 2+ minutes ago, so
+  run it a couple of minutes after the last transaction lands.

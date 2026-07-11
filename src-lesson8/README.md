@@ -1,16 +1,24 @@
 # Lesson 8 — Stateful stream processing and exactly-once delivery
 
-This is the hardest exercise in the course: a Spark streaming job that joins
-transactions with a compacted Kafka topic of customer data, writes to Postgres,
-and survives a `kill -9` without duplicating or losing rows.
+This is the hardest exercise in the course: Spark streaming jobs that join
+transactions with a compacted Kafka topic of customer data, maintain windowed
+aggregates in the state store, write to Postgres, and survive a `kill -9`
+without duplicating, losing, or miscounting rows.
+
+In the full course pipeline (Lesson 11), the transaction stream comes out of
+an OLTP Postgres via Debezium CDC. Here `seed_transactions.py` stands in for
+that CDC feed so the lesson can focus on the hard part: fault tolerance.
 
 ## Architecture
 
 ```
-Kafka (transactions) ──┐
-                        ├── Spark Structured Streaming ── Postgres
-Kafka (customers,      │   stream-static join + upsert      enriched_transactions
- compacted) ────────────┘
+Kafka (transactions) ──┬── streaming_join.py ────── Postgres enriched_transactions
+                       │   stream-static join         (idempotent upsert)
+Kafka (customers,      │
+ compacted) ───────────┘
+                       └── streaming_aggregate.py ── Postgres customer_activity
+                           windowed aggregation        (upsert on customer_id
+                           (real state store)           + window_start)
 ```
 
 ## Run it
@@ -35,12 +43,17 @@ Kafka (customers,      │   stream-static join + upsert      enriched_transacti
    uv run python src/seed_transactions.py --tps 50
    ```
 
-5. Start the Spark streaming job:
+5. Start the Spark streaming join:
    ```bash
    uv run python src/streaming_join.py
    ```
 
-6. After a couple of minutes, check the sink:
+6. In another terminal, start the stateful windowed aggregation:
+   ```bash
+   uv run python src/streaming_aggregate.py
+   ```
+
+7. After a couple of minutes, check both sinks:
    ```bash
    uv run python src/verify.py
    ```
@@ -70,6 +83,14 @@ The `verify.py` output must report:
 - `post_restart_count` > `pre_kill_count` (new transactions were produced).
 - `duplicates` = 0 (the upsert sink is idempotent).
 - `postgres_count` = `produced` (no data lost, no data duplicated).
+- aggregate `missing` = 0 and `mismatched` = 0 (state store recovered exactly).
+
+Run the same test against the aggregate job (`lesson8-stateful-aggregate`).
+This is the stronger claim: after `kill -9`, the restarted job resumes
+mid-window from the recovered state store. If state were lost or replayed
+against stale state, the sums in `customer_activity` would be wrong — and no
+upsert can repair a wrong sum. `verify.py` proves the sums are exact by
+recomputing them from `enriched_transactions` in batch.
 
 ## Why it is hard
 
@@ -81,3 +102,10 @@ upgrading the whole pipeline to **effectively exactly-once**.
 Remove the `ON CONFLICT` and run the kill-and-restart test again: you will see
 duplicates corresponding to the partially-written micro-batch at the moment of
 the kill.
+
+The two jobs fail differently, and that is the point:
+
+| Job | What protects it | How it fails without protection |
+|---|---|---|
+| `streaming_join.py` | idempotent sink (`ON CONFLICT`) | duplicate rows |
+| `streaming_aggregate.py` | state store + checkpoint | wrong sums (silent!) |
