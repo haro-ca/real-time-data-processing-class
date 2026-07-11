@@ -198,6 +198,16 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
   #s1 .reveal{animation:none}
   #s1 .reveal{opacity:1;transform:none}#s1 .t-data::after{transform:scaleX(1)}
 }
+
+/* s3 · sequence scenario A fully, then scenario B, then the question and takeaway */
+#s3.visible .col:first-child .col-label.step{transition-delay:.32s}
+#s3.visible .col:first-child .code-block.step{transition-delay:.44s}
+#s3.visible .col:first-child .callout.step{transition-delay:.58s}
+#s3.visible .col:last-child .col-label.step{transition-delay:.72s}
+#s3.visible .col:last-child .code-block.step{transition-delay:.85s}
+#s3.visible .col:last-child .callout.step{transition-delay:1.0s}
+#s3.visible .prompt.step{transition-delay:1.15s}
+#s3.visible .takeaway.step{transition-delay:1.32s}
 </style>
 </head>
 <body>
@@ -210,7 +220,7 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
      ════════════════════════════════════════════════════════════ -->
 
 <!-- ─── 01 · TITLE ─────────────────────────────────────── -->
-<section class="slide visible deep" id="s1" data-speaker="Open by connecting Lesson 7 to Lesson 8: same Source -> operators -> sink, but the operator now remembers. The kill test is the proof that the state survives.">
+<section class="slide visible deep" id="s1" data-speaker="Open by connecting Lesson 7 to Lesson 8: same Source -> operators -> sink, but the operator now remembers. Real pipelines throttle, stutter, and crash; the kill test is the proof that the state survives.">
   <div class="crumbs reveal">
     <span class="crumb">07 Windows</span>
     <span class="crumb on">08 State</span>
@@ -232,61 +242,6 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
     </div>
   </div>
   <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>REAL-TIME DATA PROCESSING</span><span>PySpark Structured Streaming &middot; Kafka &middot; Postgres</span></div>
-</section>
-
-<!-- ─── 02 · RECAP L7 ──────────────────────────────────── -->
-<section class="slide" id="s2">
-  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
-    <div class="section-marker reveal">Recap &middot; lesson 7</div>
-    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Stateless is easy. <em>Stateful is today.</em></h2>
-    <div class="two-col reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);flex:unset;">
-      <div class="col">
-        <span class="col-label" style="color:var(--cyan);">What we did</span>
-        <ul class="bullets" style="margin-top:0.2rem;">
-          <li><span class="ink-mono">map</span> / <span class="ink-mono">filter</span> / <span class="ink-mono">flatMap</span> — no memory between events.</li>
-          <li>Windowed aggregations — memory that lived for one window, then was dropped.</li>
-          <li>Watermarks — the promise that let Spark forget old windows.</li>
-        </ul>
-      </div>
-      <div class="col">
-        <span class="col-label" style="color:var(--ember);">The pivot</span>
-        <ul class="bullets hot" style="margin-top:0.2rem;">
-          <li>What if the answer depends on the <strong>entire history</strong> for a key?</li>
-          <li>What if the state must be <strong>shared across events</strong> and survive a crash?</li>
-          <li>What if the sink is a database, not a Kafka topic?</li>
-        </ul>
-      </div>
-    </div>
-    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
-      <span class="ctxt">Every previous lesson ended with a number: TPS (L1), slot lag (L5), consumer lag (L6), <span class="ink-mono">numRowsDroppedByWatermark</span> (L7). Today ends with a boolean: <strong>does the kill-and-restart test pass?</strong></span>
-    </div>
-  </div>
-  <hr class="rule" style="margin-bottom:0.7rem;">
-  <div class="meta"><span>RECAP</span><span>stateless &rarr; windowed &rarr; stateful</span></div>
-</section>
-
-<!-- ─── 03 · THE PROBLEM ───────────────────────────────── -->
-<section class="slide" id="s3">
-  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
-    <div class="section-marker hot reveal">Hour 1 &middot; the central problem</div>
-    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">A <em class="hot">count</em> is not like a map.</h2>
-    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">A stateless <span class="ink-mono">map</span> takes an event, returns a row, and forgets. A count must remember. If the processor crashes after counting 1000 events but before writing, what happens on restart?</p>
-    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:740px;">
-      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">two restart scenarios, one is wrong</span></div>
-      <div class="code-body">replay from event 1:    count = 1000   <span class="n">correct, slow</span>
-replay from event 950:  count = 50     <span class="r">wrong</span>
-
-<span class="cm"># the crash left the sink at 1000 but the checkpoint at 950</span>
-<span class="cm"># or the checkpoint at 1000 but the sink at 950</span></div>
-    </div>
-    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <span class="ctxt">State makes failure recovery non-trivial. You now have two things to keep in sync: <strong>position in the input stream</strong> and <strong>accumulated computation</strong>. If they diverge, the answer is wrong.</span>
-    </div>
-  </div>
-  <hr class="rule" style="margin-bottom:0.7rem;">
-  <div class="meta"><span>OFFSET + STATE</span><span>must advance together</span></div>
 </section>
 
 <!-- ─── 04 · TOPOLOGY WITH STATE ───────────────────────── -->
@@ -336,30 +291,144 @@ replay from event 950:  count = 50     <span class="r">wrong</span>
   <div class="meta"><span>TOPOLOGY</span><span>state is the memory of the operator</span></div>
 </section>
 
-<!-- ─── 05 · STATEFUL OPERATIONS ───────────────────────── -->
+<!-- ─── 02 · RECAP L7 ──────────────────────────────────── -->
+<section class="slide" id="s2">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Recap &middot; lesson 7</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Stateless is easy. <em>Stateful is today.</em></h2>
+    <div class="two-col reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);flex:unset;">
+      <div class="col">
+        <span class="col-label" style="color:var(--cyan);">What we did</span>
+        <ul class="bullets" style="margin-top:0.2rem;">
+          <li><span class="ink-mono">map</span> / <span class="ink-mono">filter</span> / <span class="ink-mono">flatMap</span> — no memory between events.</li>
+          <li>Windowed aggregations — memory that lived for one window, then was dropped.</li>
+          <li>Watermarks — the promise that let Spark forget old windows.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <span class="col-label" style="color:var(--ember);">The pivot</span>
+        <ul class="bullets hot" style="margin-top:0.2rem;">
+          <li>What if the answer depends on the <strong>entire history</strong> for a key?</li>
+          <li>What if the state must be <strong>shared across events</strong> and survive a crash?</li>
+          <li>What if the sink is a database, not a Kafka topic?</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">Every previous lesson ended with a number: TPS (L1), slot lag (L5), consumer lag (L6), <span class="ink-mono">numRowsDroppedByWatermark</span> (L7). Today ends with a boolean: <strong>does the kill-and-restart test pass?</strong></span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>RECAP</span><span>stateless &rarr; windowed &rarr; stateful</span></div>
+</section>
+
+<!-- ─── 03 · THE PROBLEM ───────────────────────────────── -->
+<section class="slide" id="s3">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker hot reveal">Hour 1 &middot; the central problem</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">A <em class="hot">count</em> is not like a <span class="ink-mono" style="color:var(--cyan);">filter</span>.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">A <span class="ink-mono">filter</span> is <strong style="color:var(--text);">idempotent</strong>: redeliver the same event and you drop it twice, get the same row twice &mdash; a duplicate does no harm. A <span class="ink-mono">count</span> is not: redeliver the same event and the number is wrong. So when the processor crashes after counting 1000 events but before writing, restart has exactly two options.</p>
+    <div class="two-col" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:900px;">
+      <div class="col">
+        <span class="col-label reveal step" style="color:var(--cyan);">Option A &middot; replay everything</span>
+        <div class="code-block reveal step">
+          <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">scenario A: replay from event 1</span></div>
+          <div class="code-body">state before restart: count = 0
+read events 1 &rarr; 1000
+state after replay: count = 1000
+<span class="n">write count = 1000</span></div>
+        </div>
+        <div class="callout proof reveal step" style="margin-top:0.4rem;">
+          <span class="ctxt"><strong>Correct, but expensive.</strong> Idempotency has a cost here &mdash; every event is reprocessed just to rebuild one number.</span>
+        </div>
+      </div>
+      <div class="col">
+        <span class="col-label reveal step" style="color:var(--ember);">Option B &middot; resume from offset</span>
+        <div class="code-block reveal step">
+          <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">scenario B: replay from committed offset 950</span></div>
+          <div class="code-body">state before restart: count = 0  <span class="r">(lost!)</span>
+read events 951 &rarr; 1000
+state after replay: count = 50
+<span class="r">write count = 50</span></div>
+        </div>
+        <div class="callout danger reveal step" style="margin-top:0.4rem;">
+          <span class="ctxt"><strong>Cheap, but wrong.</strong> The offset survived, but the count did not &mdash; there is no duplicate to safely drop this time.</span>
+        </div>
+      </div>
+    </div>
+    <div class="prompt reveal step" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">Question for the class</span>
+      <span class="pcmd" style="display:block;">At 100k events/second, is full replay (A) even viable &mdash; and if not, what has to be true about the sink for a cheap resume (B) to also be correct?</span>
+    </div>
+    <div class="callout danger reveal step takeaway" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt"><strong>The takeaway:</strong> filters survive replay for free because they are idempotent. Counts don&rsquo;t &mdash; you now have two things to keep in sync: <strong>position in the input stream</strong> and <strong>accumulated computation</strong>. Cheap and correct only both happen if a checkpoint ties them together.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>OFFSET + STATE</span><span>must advance together</span></div>
+</section>
+
+
+<!-- ─── 05 · ESCALATION OF STATE ───────────────────────── -->
 <section class="slide" id="s5">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
     <div class="section-marker reveal">Hour 1 &middot; stateful operations</div>
-    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Joins, sessions, <em>deduplication.</em></h2>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">If count is hard, what is <em>harder?</em></h2>
     <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <thead><tr><th>Operation</th><th>What it remembers</th><th>Why it is hard</th></tr></thead>
       <tbody>
+        <tr><td><span class="ink-mono">reducible aggregates</span></td><td>one or a few values per key</td><td>easy, but still must checkpoint and replay</td></tr>
+        <tr><td><span class="ink-mono">bounded top-N / percentiles</span></td><td>a small bounded buffer per key</td><td>bounded by N, but rankings can be unstable across replays</td></tr>
         <tr><td><span class="ink-mono">stream-table join</span></td><td>latest value per key in the "table"</td><td>table side updates; point-in-time vs eventual</td></tr>
         <tr><td><span class="ink-mono">stream-stream join</span></td><td>buffered events from both streams</td><td>both sides unbounded; state ∝ window size</td></tr>
-        <tr><td><span class="ink-mono">sessionization</span></td><td>last event time per key</td><td>variable-length windows; timers; late events</td></tr>
-        <tr><td><span class="ink-mono">deduplication</span></td><td>every event id seen (in a window)</td><td>unbounded set; must bound with time</td></tr>
       </tbody>
     </table>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      <span class="ctxt">Today&rsquo;s practical is a <strong>stream-table join</strong>: transactions enriched with a compacted customer topic. The others are conceptually the same problem — state that must be checkpointed and replayed consistently.</span>
+      <span class="ctxt">Today&rsquo;s practical is a <strong>stream-table join</strong>: transactions enriched with a compacted customer topic. The others are conceptually the same problem — state that must be checkpointed and replayed consistently. Even simple averages are stateful; the common thread is needing past events to process the current one.</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
-  <div class="meta"><span>STATEFUL OPS</span><span>joins &middot; sessions &middot; dedup</span></div>
+  <div class="meta"><span>STATEFUL OPS</span><span>count &middot; top-N &middot; table join &middot; stream-stream</span></div>
 </section>
 
-<!-- ─── 06 · STREAM-TABLE JOIN ─────────────────────────── -->
+<!-- ─── 06 · RUNNING AGGREGATE ─────────────────────────── -->
+<section class="slide" id="s6">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hour 1 &middot; the missing beat</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">A stream of events, a running <em>total.</em></h2>
+    <div class='arch reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Running aggregate: transactions feed an aggregate operator that keeps per-customer totals in a state store. The state store must be checkpointed and replayed on recovery.'>
+  <defs>
+    <marker id='l8arrow-total' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='40' y='80' width='200' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='140' y='110' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>transactions</text>
+  <text x='140' y='130' text-anchor='middle' fill='#67737f' font-size='11'>(stream)</text>
+  <line x1='240' y1='110' x2='330' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-total)'/>
+  <circle cx='380' cy='110' r='22' fill='#1a222d' stroke='#5cd6e8' stroke-width='2'/>
+  <text x='380' y='117' text-anchor='middle' fill='#5cd6e8' font-size='20' font-weight='700'>Σ</text>
+  <rect x='340' y='150' width='80' height='32' rx='4' fill='#1a222d' stroke='#5cd6e8' stroke-width='1'/>
+  <text x='380' y='171' text-anchor='middle' fill='#67737f' font-size='10'>state: sum per key</text>
+  <line x1='402' y1='110' x2='560' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-total)'/>
+  <rect x='570' y='80' width='240' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='690' y='115' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>totals</text>
+  <text x='450' y='206' text-anchor='middle' fill='#67737f' font-size='12'>a filter needs no memory; a running total cannot be recovered from the stream alone</text>
+</svg></div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">Even <strong>sum(amount) per customer</strong> is stateful. The running total lives in the state store and must be checkpointed every micro-batch. If the job dies mid-window, the restarted job must resume from the exact same total, not from zero.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>RUNNING TOTAL</span><span>state store + checkpoint</span></div>
+</section>
+
+<!-- ─── 07 · STREAM-TABLE JOIN ─────────────────────────── -->
 <section class="slide" id="s6">
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
     <div class="section-marker reveal">Hour 1 &middot; the practical join</div>
@@ -484,7 +553,7 @@ replay from event 950:  count = 50     <span class="r">wrong</span>
 </section>
 
 <!-- ─── 10 · TWO GENERALS ──────────────────────────────── -->
-<section class="slide" id="s10">
+<section class="slide" id="s10" data-speaker="Two Generals Problem: Akkoyunlu, Ekanadham &amp; Huber (1975), and Tanenbaum &amp; Van Steen, Distributed Systems. FLP impossibility: Fischer, Lynch &amp; Paterson, JACM 1985. The Two Generals Problem is the direct argument here (lossy channel, finite messages); FLP is the broader asynchronous consensus result.">
   <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,860px);margin:0 auto;">
     <div class="kicker reveal" style="color:var(--ember);">The impossibility</div>
     <div class="big-q reveal" style="margin-top:0.8rem;text-align:center;max-width:24ch;">Two independent systems cannot <em style="color:var(--ember);font-style:normal;">atomically agree.</em></div>
@@ -493,6 +562,9 @@ replay from event 950:  count = 50     <span class="r">wrong</span>
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
       <span class="ctxt">The practical solution is not to solve the impossible problem. It is to <strong>make the consequence of the duplicate disappear</strong>: write the same row twice, and the result is the same as writing it once. That is the idempotent sink.</span>
     </div>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:620px;font-size:clamp(0.6rem,1vw,0.78rem);color:var(--muted);">
+      References: Akkoyunlu, Ekanadham &amp; Huber (1975); Fischer, Lynch &amp; Paterson (1985)
+    </p>
   </div>
   <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>TWO GENERALS</span><span>no atomic commit across systems</span></div>
 </section>
