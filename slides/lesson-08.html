@@ -364,13 +364,30 @@ replay from event 950:  count = 50     <span class="r">wrong</span>
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
     <div class="section-marker reveal">Hour 1 &middot; the practical join</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">A stream of events, a Kafka topic as a table.</h2>
-    <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);">
-transactions (stream)  ──┐
-                         ├── join on customer_id ──>  enriched_transactions
-customers (compacted)  ──┘
-
-compacted topic = Kafka keeps only the latest value per key
-                 = a mutable table that can be rebuilt from the log</div>
+    <div class='arch reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Stream-table join: the transactions stream and the compacted customers topic join on customer_id, producing enriched_transactions. The compacted topic is a mutable table that can be rebuilt from the log.'>
+  <defs>
+    <marker id='l8arrow-join' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='40' y='55' width='200' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='140' y='75' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>transactions</text>
+  <text x='140' y='95' text-anchor='middle' fill='#67737f' font-size='11'>(stream)</text>
+  <rect x='40' y='120' width='200' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='140' y='140' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>customers</text>
+  <text x='140' y='160' text-anchor='middle' fill='#67737f' font-size='11'>(compacted)</text>
+  <line x1='240' y1='80' x2='350' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-join)'/>
+  <line x1='240' y1='145' x2='350' y2='115' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-join)'/>
+  <circle cx='380' cy='110' r='22' fill='#1a222d' stroke='#5cd6e8' stroke-width='2'/>
+  <text x='380' y='117' text-anchor='middle' fill='#5cd6e8' font-size='20' font-weight='700'>⋈</text>
+  <line x1='402' y1='110' x2='560' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-join)'/>
+  <text x='480' y='100' text-anchor='middle' fill='#5cd6e8' font-size='12'>join on customer_id</text>
+  <rect x='570' y='80' width='240' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='690' y='115' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>enriched_transactions</text>
+  <text x='450' y='186' text-anchor='middle' fill='#67737f' font-size='12'>compacted topic = Kafka keeps only the latest value per key</text>
+  <text x='450' y='206' text-anchor='middle' fill='#67737f' font-size='12'>= a mutable table that can be rebuilt from the log</text>
+</svg></div>
     <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       <span class="ctxt">The recommended path is a <strong>stream-static join</strong>: load the compacted customer topic as a snapshot when the Spark app starts. Customer updates after start are ignored until the app is restarted. This is acceptable for slowly-changing lookup data.</span>
@@ -431,10 +448,33 @@ compacted topic = Kafka keeps only the latest value per key
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
     <div class="section-marker hot reveal">Hour 1 &middot; the critical gap</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Exactly-once <em>processing</em> ≠ exactly-once <em>delivery.</em></h2>
-    <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);">
-Kafka  ──[replayable]──>  Spark  ──[at-least-once]──>  Postgres
-   (exactly-once           (checkpointed              (sink can receive
-    processing)             state)                     duplicates)</div>
+    <div class='arch reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Exactly-once processing is inside Spark: the checkpointed state is deterministic. Delivery is at-least-once, so the Postgres sink can receive duplicates.'>
+  <defs>
+    <marker id='l8arrow-gap' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+    <marker id='l8arrow-gap-warn' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#ff6e54'/>
+    </marker>
+  </defs>
+  <rect x='50' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='130' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Kafka</text>
+  <text x='130' y='96' text-anchor='middle' fill='#67737f' font-size='11'>replayable source</text>
+  <rect x='370' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='450' y='75' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Spark</text>
+  <text x='450' y='96' text-anchor='middle' fill='#67737f' font-size='11'>checkpointed state</text>
+  <rect x='690' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='770' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Postgres</text>
+  <text x='770' y='96' text-anchor='middle' fill='#67737f' font-size='11'>external sink</text>
+  <line x1='210' y1='80' x2='360' y2='80' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-gap)'/>
+  <text x='285' y='72' text-anchor='middle' fill='#5cd6e8' font-size='12'>replayable</text>
+  <line x1='530' y1='80' x2='680' y2='80' stroke='#ff6e54' stroke-width='2' marker-end='url(#l8arrow-gap-warn)'/>
+  <text x='605' y='72' text-anchor='middle' fill='#ff6e54' font-size='12'>at-least-once</text>
+  <text x='130' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>exactly-once processing</text>
+  <text x='450' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>deterministic state</text>
+  <text x='770' y='150' text-anchor='middle' fill='#ff6e54' font-size='12'>sink can receive duplicates</text>
+</svg></div>
     <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
       <span class="ctxt">Spark can crash after writing to Postgres but before committing the checkpoint. On restart it replays the batch and writes the same rows <strong>again</strong>. The Postgres output now has duplicates. Spark&rsquo;s guarantee stops at the sink boundary.</span>
@@ -487,11 +527,31 @@ ON CONFLICT (transaction_id) DO UPDATE SET
   <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
     <div class="section-marker reveal">Hour 1 &middot; the chain</div>
     <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">End-to-end is only as strong as the <em>weakest link.</em></h2>
-    <div class="arch reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);">
-Kafka  (replayable)  --->  Spark  (checkpointed state)  --->  Postgres
-                                              (idempotent upsert)
-        exactly-once processing                     at-least-once write
-        + deterministic replay                      + ON CONFLICT = safe</div>
+    <div class='arch reveal' style='margin-top:clamp(0.6rem,1.5vh,1rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='The effectively exactly-once chain: Kafka is replayable, Spark has checkpointed state and deterministic replay, Postgres has an idempotent upsert. The result is no loss and no duplicates after recovery.'>
+  <defs>
+    <marker id='l8arrow-chain' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='30' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='110' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Kafka</text>
+  <text x='110' y='96' text-anchor='middle' fill='#67737f' font-size='11'>replayable</text>
+  <rect x='370' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='450' y='75' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Spark</text>
+  <text x='450' y='96' text-anchor='middle' fill='#67737f' font-size='11'>checkpointed state</text>
+  <rect x='710' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='790' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Postgres</text>
+  <text x='790' y='96' text-anchor='middle' fill='#67737f' font-size='11'>idempotent upsert</text>
+  <line x1='190' y1='80' x2='360' y2='80' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-chain)'/>
+  <line x1='530' y1='80' x2='700' y2='80' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-chain)'/>
+  <text x='110' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>exactly-once processing</text>
+  <text x='110' y='168' text-anchor='middle' fill='#5cd6e8' font-size='12'>+ deterministic replay</text>
+  <text x='790' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>at-least-once write</text>
+  <text x='790' y='168' text-anchor='middle' fill='#5cd6e8' font-size='12'>+ ON CONFLICT = safe</text>
+  <rect x='270' y='192' width='360' height='24' rx='4' fill='rgba(92,214,232,0.12)' stroke='#5cd6e8' stroke-width='1'/>
+  <text x='450' y='208' text-anchor='middle' fill='#5cd6e8' font-size='12' font-weight='700'>effectively exactly-once</text>
+</svg></div>
     <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
       <span class="ctxt">The full chain is <strong>effectively exactly-once</strong>: the source can replay, the processor can resume from the checkpoint, and the sink can absorb duplicates. This is how real pipelines survive crashes.</span>
@@ -507,9 +567,29 @@ Kafka  (replayable)  --->  Spark  (checkpointed state)  --->  Postgres
     <div class="kicker reveal" style="color:var(--cyan);">Part two</div>
     <h2 class="reveal" style="font-size:clamp(2rem,5.5vw,3.6rem);margin-top:0.6rem;">Build it.</h2>
     <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">Join transactions to a compacted customers topic, sink to Postgres with an idempotent upsert, and watch the checkpoint directory keep the offset and state in lockstep.</p>
-    <div class="arch reveal" style="margin-top:clamp(0.8rem,2vh,1.4rem);max-width:min(80vw,560px);padding:clamp(0.7rem,1.6vh,1.1rem);">
-transactions ──> Spark  ──> Postgres
-customers  ──>  snapshot   (upsert)</div>
+    <div class='arch reveal' style='margin-top:clamp(0.8rem,2vh,1.4rem);max-width:min(80vw,560px);padding:clamp(0.7rem,1.6vh,1.1rem);'>
+<svg viewBox='0 0 760 180' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Build it: transactions feed a Spark stream, customers feed a static snapshot, and the result is upserted into Postgres.'>
+  <defs>
+    <marker id='l8arrow-build' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='20' y='50' width='140' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='90' y='70' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>transactions</text>
+  <text x='90' y='88' text-anchor='middle' fill='#67737f' font-size='11'>stream</text>
+  <rect x='20' y='115' width='140' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='90' y='135' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>customers</text>
+  <text x='90' y='153' text-anchor='middle' fill='#67737f' font-size='11'>compacted snapshot</text>
+  <rect x='300' y='80' width='140' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='370' y='108' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Spark</text>
+  <text x='370' y='128' text-anchor='middle' fill='#67737f' font-size='11'>join + state</text>
+  <rect x='600' y='80' width='140' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='670' y='108' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Postgres</text>
+  <text x='670' y='128' text-anchor='middle' fill='#67737f' font-size='11'>upsert</text>
+  <line x1='160' y1='75' x2='290' y2='100' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-build)'/>
+  <line x1='160' y1='140' x2='290' y2='115' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-build)'/>
+  <line x1='440' y1='110' x2='590' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-build)'/>
+</svg></div>
   </div>
   <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>BUILD IT</span><span>Kafka + Postgres + PySpark</span></div>
 </section>
