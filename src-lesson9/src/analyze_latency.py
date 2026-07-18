@@ -40,7 +40,7 @@ def drain_topic(topic: str, bootstrap: str, timeout: float = 5.0):
     max_empty_polls = 3
 
     while empty_polls < max_empty_polls:
-        msg = consumer.poll(timeout=int(timeout * 1000))
+        msg = consumer.poll(timeout=timeout)
         if msg is None:
             empty_polls += 1
             continue

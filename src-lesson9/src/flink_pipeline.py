@@ -29,6 +29,7 @@ from pyflink.datastream.window import Time, TumblingEventTimeWindows
 
 from config import (
     BOOTSTRAP,
+    FLINK_CKPT,
     FLINK_RESULTS_TOPIC,
     ORDERS_TOPIC,
     WINDOW_SECONDS,
@@ -86,7 +87,9 @@ def main():
 
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
+    env.set_python_executable(sys.executable)
     env.enable_checkpointing(args.checkpointing)
+    env.get_checkpoint_config().set_checkpoint_storage_dir(f"file://{FLINK_CKPT.resolve()}")
     env.add_jars(f"file://{jar_path.resolve()}")
 
     source = (
