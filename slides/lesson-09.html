@@ -125,42 +125,43 @@ h2 em.hot,h1 em.hot{color:var(--ember)}
 .meta span:nth-child(2){text-align:right;opacity:0.8}
 hr.rule{border:0;border-top:1px solid var(--line);margin:0}
 
-/* ---- state lane (signature visual: process crashes, resumes from checkpoint, not zero) ---- */
-.slane{position:relative;height:clamp(64px,11vh,96px);max-width:760px;margin-top:clamp(0.8rem,2vh,1.4rem)}
-.slane .srail{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--line-strong)}
-.slane .srail::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
-  border-left:8px solid var(--line-strong);border-top:5px solid transparent;border-bottom:5px solid transparent}
-.slane .ckpt{position:absolute;top:50%;width:9px;height:9px;background:var(--panel2);border:1.5px solid var(--cyan-dim);
-  transform:translate(-50%,-50%) rotate(45deg)}
-.slane .ckpt::before{content:'checkpoint';position:absolute;top:-2.1em;left:50%;transform:translate(-50%,0) rotate(-45deg);
-  font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);color:var(--muted);letter-spacing:0.04em;white-space:nowrap}
-.slane .ckpt:not(:nth-of-type(2))::before{content:''}
-.slane .crash{position:absolute;top:14%;left:52%;transform:translate(-50%,0);opacity:0;animation:crashFlash 6s linear infinite}
-.slane .crash::after{content:'crash';position:absolute;top:1.5em;left:50%;transform:translateX(-50%);
-  font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);color:var(--ember);letter-spacing:0.04em;white-space:nowrap}
-.slane .proc{position:absolute;top:50%;width:clamp(12px,1.5vw,16px);height:clamp(12px,1.5vw,16px);border-radius:50%;
-  background:var(--cyan);box-shadow:0 0 10px rgba(92,214,232,.55);transform:translate(-50%,-50%);
-  animation:stateRun 6s linear infinite;opacity:0}
-.slane .cap{position:absolute;bottom:-1.6em;left:0;font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.68rem);color:var(--muted);letter-spacing:0.04em}
-@keyframes crashFlash{
-  0%,43%{opacity:0;transform:translate(-50%,0) scale(0.6)}
-  45%{opacity:1;transform:translate(-50%,0) scale(1.15)}
-  49%,100%{opacity:0;transform:translate(-50%,0) scale(0.6)}
+/* ---- dual lane (signature visual: Spark hops in batches, Flink never stops) ---- */
+.dual-lane{position:relative;max-width:760px;margin-top:clamp(0.8rem,2vh,1.4rem);display:flex;flex-direction:column;gap:clamp(1.1rem,2.4vh,1.6rem)}
+.dual-lane .lane{position:relative;height:2px}
+.dual-lane .lane-label{position:absolute;left:0;top:-1.7em;font-family:var(--mono);font-size:clamp(0.5rem,0.82vw,0.64rem);
+  font-weight:700;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase}
+.dual-lane .lane.spark .lane-label{color:var(--ember)}
+.dual-lane .lane.flink .lane-label{color:var(--cyan)}
+.dual-lane .rail{position:absolute;left:0;right:0;top:0;height:2px;background:var(--line-strong)}
+.dual-lane .rail::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  border-left:7px solid var(--line-strong);border-top:4px solid transparent;border-bottom:4px solid transparent}
+.dual-lane .tick{position:absolute;top:-3px;width:1.5px;height:8px;background:var(--line-strong);opacity:.7}
+.dual-lane .dot{position:absolute;top:0;width:clamp(11px,1.4vw,15px);height:clamp(11px,1.4vw,15px);border-radius:50%;
+  transform:translate(-50%,-50%);opacity:0}
+.dual-lane .dot.hop{background:var(--ember);box-shadow:0 0 9px rgba(255,110,84,.5);animation:hopMove 5s infinite}
+.dual-lane .dot.flow{background:var(--cyan);box-shadow:0 0 9px rgba(92,214,232,.5);animation:flowMove 5s linear infinite}
+.dual-lane .lane-cap{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.68rem);color:var(--muted);letter-spacing:0.03em}
+@keyframes hopMove{
+  0%{left:0%;opacity:0}
+  2%{opacity:1}
+  14%{left:0%}
+  16%,30%{left:20%}
+  32%,46%{left:40%}
+  48%,62%{left:60%}
+  64%,78%{left:80%}
+  80%,94%{left:100%}
+  96%{left:100%;opacity:0}
+  97%,100%{left:0%;opacity:0}
 }
-@keyframes stateRun{
-  0%{left:0%;opacity:0;background:var(--cyan)}
-  5%{opacity:1}
-  44%{left:52%;opacity:1;background:var(--cyan)}
-  46%{left:52%;opacity:0;background:var(--cyan)}
-  54%{left:31%;opacity:0;background:var(--ember)}
-  58%{left:31%;opacity:1;background:var(--ember)}
-  65%{left:31%;opacity:1;background:var(--cyan)}
-  97%{left:100%;opacity:1;background:var(--cyan)}
-  100%{left:100%;opacity:0;background:var(--cyan)}
+@keyframes flowMove{
+  0%{left:0%;opacity:0}
+  2%{opacity:1}
+  94%{left:100%;opacity:1}
+  96%{left:100%;opacity:0}
+  97%,100%{left:0%;opacity:0}
 }
 @media (prefers-reduced-motion:reduce){
-  .slane .proc{animation:none;left:31%;opacity:1;background:var(--cyan)}
-  .slane .crash{animation:none;opacity:.85}
+  .dual-lane .dot{animation:none;opacity:1;left:60%}
 }
 
 .reveal{opacity:0;transform:translateY(18px);transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
@@ -194,7 +195,7 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
 #s1 .eyebrow.reveal{animation-delay:.25s}
 #s1 h1.reveal{animation-delay:.4s}
 #s1 .sub.reveal{animation-delay:.7s}
-#s1 .slane.reveal{animation-delay:1.05s}
+#s1 .dual-lane.reveal{animation-delay:1.05s}
 #s1 .t-data{position:relative;white-space:nowrap}
 #s1 .t-data::after{content:'';position:absolute;left:0;right:-.04em;bottom:.04em;height:.085em;background:var(--cyan);transform:scaleX(0);transform-origin:left;animation:drawUnderline .7s var(--ease) 1.2s forwards}
 @media (prefers-reduced-motion:reduce){
@@ -233,6 +234,23 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
     <div class="eyebrow reveal" style="margin-bottom:0.8rem;">Stream processing III &middot; latency measurement</div>
     <h1 class="reveal">Measure the <span class="t-data">difference.</span></h1>
     <p class="sub reveal" style="margin-top:clamp(0.9rem,2vh,1.4rem);">Lessons 7–8 built the same windowed aggregation in <span class="ink-mono">Spark Structured Streaming</span>. Lesson 9 re-implements it in <span class="ink-mono">PyFlink DataStream</span> and asks one question: <em style="color:var(--cyan);font-style:normal;">how late are the results?</em> Same data, same windows, two engines, one CDF.</p>
+    <div class="dual-lane reveal">
+      <div class="lane spark">
+        <span class="lane-label">Spark &middot; micro-batch</span>
+        <div class="rail"></div>
+        <span class="tick" style="left:20%"></span>
+        <span class="tick" style="left:40%"></span>
+        <span class="tick" style="left:60%"></span>
+        <span class="tick" style="left:80%"></span>
+        <span class="dot hop"></span>
+      </div>
+      <div class="lane flink">
+        <span class="lane-label">Flink &middot; true streaming</span>
+        <div class="rail"></div>
+        <span class="dot flow"></span>
+      </div>
+      <span class="lane-cap">same event stream, two engines &middot; one waits for the next trigger, one never stops</span>
+    </div>
   </div>
   <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>REAL-TIME DATA PROCESSING</span><span>PySpark &middot; PyFlink &middot; Kafka</span></div>
 </section>
