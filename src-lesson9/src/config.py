@@ -10,6 +10,12 @@ import sys
 import urllib.request
 from pathlib import Path
 
+# Every entry point imports this module, so reconfigure here: without it,
+# stdout redirected to a log file (as benchmark.py does for each subprocess)
+# is block-buffered and shows nothing until the process exits, which makes
+# tailing progress during a live run impossible.
+sys.stdout.reconfigure(line_buffering=True)
+
 # ── Kafka / topics ───────────────────────────────────────────────────────────
 BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:19092")
 ORDERS_TOPIC = "orders"

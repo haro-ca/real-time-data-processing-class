@@ -30,6 +30,7 @@ from pyspark.sql.functions import (
 from config import (
     BOOTSTRAP,
     CKPT_DIR,
+    DATA_DIR,
     ORDERS_TOPIC,
     SPARK_RESULTS_TOPIC,
     WINDOW_SECONDS,
@@ -37,6 +38,8 @@ from config import (
     build_spark,
     order_schema,
 )
+
+READY_MARKER = DATA_DIR / "spark.ready"
 
 
 def main():
@@ -108,6 +111,9 @@ def main():
         .trigger(processingTime=f"{args.trigger} seconds")
         .start()
     )
+
+    READY_MARKER.write_text(str(int(time.time() * 1000)))
+    print(f"Spark query running, subscribed to '{ORDERS_TOPIC}'.", file=sys.stderr)
 
     if args.max_time > 0:
         time.sleep(args.max_time)

@@ -29,6 +29,7 @@ from pyflink.datastream.window import Time, TumblingEventTimeWindows
 
 from config import (
     BOOTSTRAP,
+    DATA_DIR,
     FLINK_CKPT,
     FLINK_RESULTS_TOPIC,
     ORDERS_TOPIC,
@@ -36,6 +37,8 @@ from config import (
     banner,
     ensure_flink_kafka_jar,
 )
+
+READY_MARKER = DATA_DIR / "flink.ready"
 
 
 class ParseOrder(MapFunction):
@@ -135,6 +138,7 @@ def main():
     windowed.sink_to(sink)
 
     job_client = env.execute_async("lesson9-flink-latency")
+    READY_MARKER.write_text(str(int(time.time() * 1000)))
     print(f"Flink job started: {job_client.get_job_id()}")
 
     if args.max_time > 0:
