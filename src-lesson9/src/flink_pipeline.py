@@ -76,12 +76,21 @@ def main():
     parser.add_argument("--max-time", type=int, default=0, help="cancel job after N seconds (0 = run until Ctrl-C)")
     parser.add_argument("--checkpointing", type=int, default=10_000, help="checkpoint interval in ms")
     parser.add_argument("--window-seconds", type=int, default=WINDOW_SECONDS, help="tumbling window size")
+    parser.add_argument(
+        "--watermark-seconds", type=int, default=5,
+        help="bounded-out-of-orderness watermark delay",
+    )
+    parser.add_argument(
+        "--disable-idleness", action="store_true",
+        help="skip with_idleness() — demonstrates the watermark-stall gotcha when the source goes quiet",
+    )
     args = parser.parse_args()
 
     banner(
         "PyFlink DataStream benchmark",
         f"checkpointing: {args.checkpointing}ms",
-        f"watermark:     5s bounded out-of-orderness",
+        f"watermark:     {args.watermark_seconds}s bounded out-of-orderness"
+        + (" (idleness DISABLED)" if args.disable_idleness else ""),
         f"window:        {args.window_seconds}s",
         f"output topic:  {FLINK_RESULTS_TOPIC}",
     )
@@ -109,11 +118,14 @@ def main():
 
     parsed = ds.map(ParseOrder(), output_type=Types.PICKLED_BYTE_ARRAY())
 
-    timestamped = parsed.assign_timestamps_and_watermarks(
-        WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5))
-        .with_idleness(Duration.of_seconds(1))
-        .with_timestamp_assigner(OrderTimestampAssigner())
+    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(
+        Duration.of_seconds(args.watermark_seconds)
     )
+    if not args.disable_idleness:
+        watermark_strategy = watermark_strategy.with_idleness(Duration.of_seconds(1))
+    watermark_strategy = watermark_strategy.with_timestamp_assigner(OrderTimestampAssigner())
+
+    timestamped = parsed.assign_timestamps_and_watermarks(watermark_strategy)
 
     windowed = (
         timestamped
