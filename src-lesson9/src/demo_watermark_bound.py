@@ -1,10 +1,19 @@
 """Demo: Flink's latency floor tracks the watermark bound, not a trigger interval.
 
 Flink-only (no Spark) — sweeps --watermark-seconds across a few values and
-shows the measured processing latency moves with it, roughly 1:1. This
-isolates the mechanism slide 4 claims (watermark delay dominates Flink's
-latency floor) directly, instead of inferring it from a Spark-vs-Flink
-comparison where other factors are also in play.
+shows each individual closed window's measured latency as a bar against a
+dashed reference line at the configured watermark bound. This deliberately
+mirrors demo_trigger_floor.py's visual grammar (bars vs. a fixed reference
+line, one panel per condition) so the two "proof" slides read the same way:
+bars sitting just above the line means the floor is pinned to whatever the
+line represents.
+
+An earlier version of this demo plotted a single p50 point per watermark
+against a y=x line — it technically showed latency increasing with the
+watermark, but the fit was sloppy (1s->3.1s, 5s->5.5s, 10s->12.2s isn't
+linear) because a single summary point per round hides how few windows each
+round closes and doesn't make the mechanism legible. Per-window bars fix
+both problems.
 
 Usage:
     uv run python src/demo_watermark_bound.py
@@ -19,8 +28,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
+from analyze_latency import compute_latencies, drain_topic
 from benchmark import READY_TIMEOUT, run_script, wait_for, wait_for_ready
-from config import DATA_DIR, ROOT, banner
+from config import BOOTSTRAP, DATA_DIR, FLINK_RESULTS_TOPIC, ROOT, banner
 
 WATERMARKS_SECONDS = [1, 5, 10]
 WINDOW_SECONDS = 10
@@ -36,7 +46,8 @@ def reset_state() -> None:
         shutil.rmtree(ckpt)
 
 
-def run_round(watermark_seconds: int) -> dict:
+def run_round(watermark_seconds: int) -> list[float]:
+    """Returns the raw per-window processing latency (ms) for this watermark setting."""
     reset_state()
     (DATA_DIR / "flink.ready").unlink(missing_ok=True)
 
@@ -64,32 +75,28 @@ def run_round(watermark_seconds: int) -> dict:
     time.sleep(DRAIN_SECONDS)
     wait_for(flink, 90, "Flink pipeline")
 
-    analyzer = run_script("analyze_latency.py")
-    wait_for(analyzer, 60, "analyzer")
+    records = drain_topic(FLINK_RESULTS_TOPIC, BOOTSTRAP)
+    processing, _ = compute_latencies(records)
+    processing_ms = sorted(float(x) for x in processing)
 
-    report = json.loads((DATA_DIR / "latency_report.json").read_text())
-    (DATA_DIR / f"watermark_demo_{watermark_seconds}s.json").write_text(json.dumps(report, indent=2) + "\n")
-
-    return {
-        "watermark_seconds": watermark_seconds,
-        "flink_windows": report["flink"]["windows"],
-        "flink_p50_ms": report["flink"]["processing_latency_ms"]["p50"],
-        "flink_p99_ms": report["flink"]["processing_latency_ms"]["p99"],
-    }
+    (DATA_DIR / f"watermark_demo_{watermark_seconds}s.json").write_text(
+        json.dumps({"watermark_seconds": watermark_seconds, "processing_latency_ms": processing_ms}, indent=2) + "\n"
+    )
+    return processing_ms
 
 
-def plot(results: list[dict], path: Path) -> None:
-    watermarks = [r["watermark_seconds"] for r in results]
-    p50_s = [r["flink_p50_ms"] / 1000 for r in results]
-
-    fig, ax = plt.subplots(figsize=(7, 6))
-    ax.plot(watermarks, p50_s, marker="o", linewidth=2, color="#5cd6e8", label="Flink p50 processing latency")
-    ax.plot(watermarks, watermarks, linestyle="--", color="#67737f", label="y = x (watermark bound alone)")
-    ax.set_xlabel("configured watermark bound (s)")
-    ax.set_ylabel("measured processing latency (s)")
-    ax.set_title("Flink's latency floor tracks the watermark bound")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+def plot(results: dict[int, list[float]], path: Path) -> None:
+    fig, axes = plt.subplots(1, len(results), figsize=(5.5 * len(results), 5), sharey=False)
+    for ax, (watermark_seconds, durations) in zip(axes, results.items()):
+        line_ms = watermark_seconds * 1000
+        ax.bar(range(len(durations)), durations, color="#5cd6e8")
+        ax.axhline(line_ms, color="#ff6e54", linestyle="--", linewidth=2, label=f"watermark = {watermark_seconds}s")
+        ax.set_title(f"watermark = {watermark_seconds}s")
+        ax.set_xlabel("window #")
+        ax.set_ylabel("measured processing latency (ms)")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+    fig.suptitle("Flink's latency floor tracks the watermark bound, window by window")
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     print(f"chart saved to {path}")
@@ -103,12 +110,14 @@ def main():
         f"produce duration: {PRODUCE_DURATION}s per round",
     )
 
-    results = [run_round(w) for w in WATERMARKS_SECONDS]
+    results = {w: run_round(w) for w in WATERMARKS_SECONDS}
 
     out_path = DATA_DIR / "watermark_bound_demo.json"
     out_path.write_text(json.dumps(results, indent=2) + "\n")
     print(f"\nresults saved to {out_path}")
-    print(json.dumps(results, indent=2))
+    for w, durations in results.items():
+        avg = sum(durations) / len(durations) if durations else 0
+        print(f"  watermark={w}s: {len(durations)} windows, avg latency {avg:.0f}ms")
 
     plot(results, DATA_DIR / "watermark_bound_demo.png")
 

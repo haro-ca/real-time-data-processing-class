@@ -20,7 +20,7 @@ from config import BOOTSTRAP, FLINK_RESULTS_TOPIC, ORDERS_TOPIC, SPARK_RESULTS_T
 TOPICS = [ORDERS_TOPIC, SPARK_RESULTS_TOPIC, FLINK_RESULTS_TOPIC]
 
 
-def reset_topics(admin: AdminClient) -> None:
+def reset_topics(admin: AdminClient, poll_timeout: float = 20.0, poll_interval: float = 0.5) -> None:
     futures = admin.delete_topics(TOPICS, operation_timeout=30)
     for name, future in futures.items():
         try:
@@ -31,8 +31,21 @@ def reset_topics(admin: AdminClient) -> None:
                 print(f"  did not exist: {name}")
             else:
                 print(f"  FAILED to delete {name}: {e}", file=sys.stderr)
-    # Deletion is asynchronous on the broker; give it a moment before recreating.
-    time.sleep(2)
+
+    # future.result() resolving does not mean the topic is actually gone from
+    # broker metadata yet — a fixed sleep here was NOT reliably long enough
+    # and caused create_topics() below to silently hit TOPIC_ALREADY_EXISTS,
+    # leaving the OLD topic (with old data) in place across "reset" runs.
+    # Poll until the topics are confirmed absent instead of guessing.
+    deadline = time.time() + poll_timeout
+    still_present = TOPICS
+    while time.time() < deadline:
+        metadata = admin.list_topics(timeout=5)
+        still_present = [t for t in TOPICS if t in metadata.topics]
+        if not still_present:
+            return
+        time.sleep(poll_interval)
+    print(f"  WARNING: still present after {poll_timeout}s: {still_present}", file=sys.stderr)
 
 
 def main():

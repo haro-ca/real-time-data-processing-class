@@ -17,17 +17,24 @@ from pathlib import Path
 sys.stdout.reconfigure(line_buffering=True)
 
 # ── Kafka / topics ───────────────────────────────────────────────────────────
+# L9_TOPIC_PREFIX namespaces every topic so an isolated run (e.g. a sweep) can
+# share the broker with another run without clobbering its topics. Empty by
+# default, so a normal run is unchanged.
 BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:19092")
-ORDERS_TOPIC = "orders"
-SPARK_RESULTS_TOPIC = "results-spark"
-FLINK_RESULTS_TOPIC = "results-flink"
+TOPIC_PREFIX = os.environ.get("L9_TOPIC_PREFIX", "")
+ORDERS_TOPIC = f"{TOPIC_PREFIX}orders"
+SPARK_RESULTS_TOPIC = f"{TOPIC_PREFIX}results-spark"
+FLINK_RESULTS_TOPIC = f"{TOPIC_PREFIX}results-flink"
 
 # ── Directories ──────────────────────────────────────────────────────────────
+# DATA_DIR and CKPT_DIR are overridable (L9_DATA_DIR / L9_CKPT_DIR) for the same
+# reason: two runs sharing the machine must not read each other's reports or
+# delete each other's checkpoints. Both default to the usual locations.
 ROOT = Path(__file__).parent.parent
-DATA_DIR = ROOT / "data"
-DATA_DIR.mkdir(exist_ok=True)
-CKPT_DIR = ROOT / "ckpt"
-CKPT_DIR.mkdir(exist_ok=True)
+DATA_DIR = ROOT / os.environ.get("L9_DATA_DIR", "data")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+CKPT_DIR = ROOT / os.environ.get("L9_CKPT_DIR", "ckpt")
+CKPT_DIR.mkdir(parents=True, exist_ok=True)
 LIB_DIR = ROOT / "lib"
 LIB_DIR.mkdir(exist_ok=True)
 

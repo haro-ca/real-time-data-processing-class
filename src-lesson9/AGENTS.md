@@ -82,6 +82,15 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   results into the current analysis (this happened during initial
   verification and produced nonsensical latency numbers before it was
   caught). Always reset topics before a measurement that matters.
+- `setup_topics.py --reset` polls for confirmed topic deletion before
+  recreating (`reset_topics()`). It used to sleep a fixed 2s instead, which
+  was not reliably long enough — back-to-back rounds in a multi-round demo
+  script would see `TOPIC_ALREADY_EXISTS` on recreation and silently keep
+  reading the stale, growing old topic. If a multi-round script (any
+  `demo_*.py`, `throughput_sweep.py`) ever reports suspiciously inflated or
+  inconsistent window counts across rounds, this class of bug is the first
+  thing to check — self-consistency across rounds (same window count every
+  round, for a time-based window size) is a good tripwire.
 - Window size must stay small relative to run length — enough windows need to
   close per engine (aim for 15-30+) for percentiles to mean anything. 5-minute
   windows over a 10-minute run only produce ~2 samples per engine, which is a

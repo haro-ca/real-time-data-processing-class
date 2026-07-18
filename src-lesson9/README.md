@@ -203,8 +203,18 @@ uv run python src/demo_idle_source_stall.py   # ~3 min, Flink only
   at ~401ms (trigger-bound), heavy work floors at ~1,707ms (batch-bound).
 - **`demo_watermark_bound.py`** — proves Flink's latency floor tracks the
   watermark bound, not a trigger. Flink-only, sweeps `--watermark-seconds`
-  across `[1, 5, 10]`. Measured: 3.1s / 5.5s / 12.2s — monotonically
-  increasing with the watermark, roughly in step with it.
+  across `[1, 5, 10]` and plots each individual closed window as a bar
+  against a dashed line at the configured watermark — same visual grammar
+  as the trigger-floor demo on purpose. Measured: avg 2.9s / 5.6s / 13.9s —
+  every window sits just above its line, and the line itself moves with the
+  watermark. (An earlier version plotted one summary point per watermark
+  against a `y=x` line; the fit was sloppy — 1s→3.1s, 5s→5.5s, 10s→12.2s —
+  because a single point per round hides how few windows each round closes.
+  Per-window bars fixed both the legibility and, in finding this, surfaced a
+  real bug: `setup_topics.py --reset`'s fixed 2s sleep after deleting topics
+  wasn't reliably long enough for Kafka to actually finish the deletion
+  before recreating them, so back-to-back rounds were silently reading a
+  stale, growing `orders` topic. Fixed to poll for confirmed deletion instead.)
 - **`demo_idle_source_stall.py`** — the classic Flink gotcha: a
   bounded-out-of-orderness watermark only advances on new records, so a
   quiet source freezes it and pending windows never fire — silently, no
