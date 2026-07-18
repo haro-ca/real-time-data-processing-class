@@ -434,6 +434,43 @@ hr.rule{border:0;border-top:1px solid var(--line);margin:0}
       <div class="code-body">processing_latency_ms = emit_ts_ms - window_end_ms
 end_to_end_latency_ms = emit_ts_ms - max(produced_at_ms in window)</div>
     </div>
+    <div class="arch reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.6rem,1.4vh,1rem) clamp(0.9rem,1.6vw,1.4rem);">
+      <svg viewBox="0 0 900 190" style="width:100%;height:auto;display:block;font-family:var(--sans)" role="img" aria-label="Timeline of the three timestamps: event produced, window end, and result emitted. End-to-end latency spans from event produced to result emitted. Processing latency spans only from window end to result emitted, a shorter span nested inside end-to-end latency.">
+        <defs>
+          <marker id="s7arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#324050"/>
+          </marker>
+        </defs>
+        <line x1="90" y1="46" x2="860" y2="46" stroke="#324050" stroke-width="2" marker-end="url(#s7arrow)"/>
+        <text x="872" y="51" fill="#67737f" font-size="12" font-family="var(--mono)">time</text>
+
+        <line x1="160" y1="40" x2="160" y2="168" stroke="#233040" stroke-width="1" stroke-dasharray="3,4"/>
+        <line x1="500" y1="40" x2="500" y2="168" stroke="#233040" stroke-width="1" stroke-dasharray="3,4"/>
+        <line x1="820" y1="40" x2="820" y2="168" stroke="#233040" stroke-width="1" stroke-dasharray="3,4"/>
+
+        <circle cx="160" cy="46" r="6.5" fill="#1a222d" stroke="#ff6e54" stroke-width="2.5"/>
+        <circle cx="500" cy="46" r="6.5" fill="#1a222d" stroke="#e7eaee" stroke-width="2.5"/>
+        <circle cx="820" cy="46" r="6.5" fill="#1a222d" stroke="#5cd6e8" stroke-width="2.5"/>
+
+        <text x="160" y="20" text-anchor="middle" fill="#e7eaee" font-size="14" font-weight="700">event produced</text>
+        <text x="500" y="20" text-anchor="middle" fill="#e7eaee" font-size="14" font-weight="700">window end</text>
+        <text x="820" y="20" text-anchor="middle" fill="#e7eaee" font-size="14" font-weight="700">result emitted</text>
+
+        <text x="160" y="72" text-anchor="middle" fill="#ff6e54" font-size="12" font-family="var(--mono)">produced_at_ms</text>
+        <text x="500" y="72" text-anchor="middle" fill="#aab4bf" font-size="12" font-family="var(--mono)">window_end_ms</text>
+        <text x="820" y="72" text-anchor="middle" fill="#5cd6e8" font-size="12" font-family="var(--mono)">emit_ts_ms</text>
+
+        <text x="490" y="98" text-anchor="middle" fill="#aab4bf" font-size="13" font-weight="700" letter-spacing="0.03em">end-to-end latency</text>
+        <line x1="160" y1="108" x2="820" y2="108" stroke="#67737f" stroke-width="2"/>
+        <line x1="160" y1="101" x2="160" y2="115" stroke="#67737f" stroke-width="2"/>
+        <line x1="820" y1="101" x2="820" y2="115" stroke="#67737f" stroke-width="2"/>
+
+        <line x1="500" y1="142" x2="820" y2="142" stroke="#5cd6e8" stroke-width="3"/>
+        <line x1="500" y1="134" x2="500" y2="150" stroke="#5cd6e8" stroke-width="3"/>
+        <line x1="820" y1="134" x2="820" y2="150" stroke="#5cd6e8" stroke-width="3"/>
+        <text x="660" y="166" text-anchor="middle" fill="#5cd6e8" font-size="13" font-weight="700" letter-spacing="0.03em">processing latency</text>
+      </svg>
+    </div>
     <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
       <span class="ctxt">Both engines write the <strong>same JSON result shape</strong> to their own Kafka topic, so the analyzer compares them fairly.</span>
