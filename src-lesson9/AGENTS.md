@@ -44,6 +44,10 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   analyzes.
 - `src/throughput_sweep.py` — runs the benchmark across several producer
   rates, plots measured throughput vs. p50 processing latency per engine.
+- `src/trigger_sweep.py` — holds the rate fixed and sweeps Spark's trigger
+  interval, plotting Spark vs. Flink p50 latency (the slide 5 plot). Runs on
+  an isolated topic/checkpoint/data namespace so it can share the broker with
+  other jobs (see Conventions).
 - `src/demo_trigger_floor.py` — self-contained (Spark `rate` source, no
   Kafka), proves `max(trigger_interval, batch_processing_time)` from Spark's
   own `recentProgress` telemetry.
@@ -61,6 +65,14 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   JAR; `config.ensure_flink_kafka_jar()` downloads it to `lib/` on first run.
 - Both pipelines start from `earliest` on `orders` and write results to Kafka.
 - Checkpoints live in `ckpt/spark` and `ckpt/flink`. Deleting them resets state.
+- Topics, the checkpoint dir, and the data dir are overridable via
+  `L9_TOPIC_PREFIX`, `L9_CKPT_DIR`, and `L9_DATA_DIR` (see `config.py`, all
+  default to the usual single-run locations). Set all three to run a benchmark
+  on an isolated namespace so it can share the broker with another run without
+  corrupting it — `trigger_sweep.py` does this with a `trig-` prefix. Two runs
+  sharing the default topics/checkpoints/`data` **will** corrupt each other
+  (zeroed windows, wrong report read); isolation is mandatory whenever another
+  agent or job is live on the same broker.
 
 ## Hard constraints
 

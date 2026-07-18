@@ -183,6 +183,52 @@ a single laptop needs either much higher sustained load or a much tighter
 trigger than tested here — see the trigger-floor demo below, which forces
 the shift directly instead of hoping throughput gets there organically.
 
+## Trigger interval vs. latency (slide 5)
+
+```bash
+uv run python src/trigger_sweep.py
+```
+
+Holds the rate fixed (50/s) and sweeps Spark's trigger interval `[1, 2, 5,
+10]s`, plotting each engine's median processing latency against the trigger.
+Because the producer can't push throughput hard enough to move latency on one
+laptop (see above), the trigger — a knob we set directly — is what reveals the
+micro-batch vs. streaming trade-off. This is the plot slide 5 now uses. Takes
+~15 minutes.
+
+**What we measured on this laptop** (rate 50/s, 10s window, 5s watermark,
+11-12 windows per point):
+
+| Spark trigger | Spark p50 | Flink p50 |
+|---|---|---|
+| 1s  | 7.0s  | 7.5s |
+| 2s  | 8.0s  | 7.7s |
+| 5s  | 15.0s | 7.1s |
+| 10s | 20.0s | 7.2s |
+
+Spark's floor is `max(trigger_interval, batch_processing_time)`, so its latency
+climbs almost linearly with the trigger; Flink has no trigger — its floor is
+the watermark bound, so it stays flat. At a 1s trigger the two nearly tie,
+which is the real headline: micro-batch isn't inherently slower, it trades
+latency for the batching efficiency that pays off at high throughput.
+
+**Running beside another job (topic/checkpoint isolation).**
+`trigger_sweep.py` resets Kafka topics and checkpoints between rounds, which
+corrupts any other benchmark sharing the same broker (and vice versa) — a
+concurrent run will silently zero out windows or read the wrong report. To
+stay out of each other's way, the sweep runs on an isolated namespace via
+three optional env vars honored by `config.py` (all default to the normal
+single-run locations):
+
+| env var | effect |
+|---|---|
+| `L9_TOPIC_PREFIX` | prefixes every Kafka topic (e.g. `trig-orders`) |
+| `L9_CKPT_DIR` | checkpoint dir under the project root (default `ckpt`) |
+| `L9_DATA_DIR` | report/marker/log dir under the project root (default `data`) |
+
+Set the same three for any run you want to isolate; leave them unset for the
+default behavior.
+
 ## Micro-demos
 
 Three small, focused scripts that each isolate one specific claim from the
