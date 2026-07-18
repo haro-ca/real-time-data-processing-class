@@ -547,22 +547,22 @@ end_to_end_latency_ms = emit_ts_ms - max(produced_at_ms in window)</div>
 </section>
 
 <!-- ─── 13 · VARY SPARK TRIGGER ───────────────────────── -->
-<section class="slide" id="s13" data-speaker="Experiment: shrink the Spark trigger. The curve improves, but diminishing returns set in because the per-batch overhead becomes a larger fraction of the batch.">
+<section class="slide" id="s13" data-speaker="Slide 5 showed the sweep from 1s to 10s. It stopped at 1s because that's where Spark and Flink nearly tied. Your turn: push below 1s and find out whether Spark's floor keeps dropping toward Flink's, or hits a hard wall first.">
   <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
-    <div class="section-marker reveal">Hour 2 &middot; experiment</div>
-    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Spark has a <em class="hot">floor.</em></h2>
+    <div class="section-marker hot reveal">Hour 2 &middot; your turn</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Does Spark's floor keep <em class="hot">dropping</em> below 1s?</h2>
     <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
-      <li>Run Spark with trigger = 10 s, 5 s, 2 s, 1 s, 500 ms.</li>
-      <li>Plot p99 latency versus throughput for each setting.</li>
-      <li>Diminishing returns appear below ~2 seconds.</li>
+      <li>The trigger sweep on the trade-off slide stopped at <span class="ink-mono">--trigger 1</span>, where Spark (7.0s) and Flink (7.5s) nearly tied.</li>
+      <li>Run it yourselves at <span class="ink-mono">--trigger 500</span>ms (Spark's minimum is milliseconds, not seconds) and <span class="ink-mono">--trigger 250</span>ms.</li>
+      <li>Does Spark's p50 keep falling toward Flink's floor, match it, or hit a wall first?</li>
     </ul>
     <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <span class="ctxt">As the trigger shrinks, <strong>per-batch overhead</strong> (offset discovery, planning, scheduling, commit) becomes a larger fraction of the work. Throughput can drop while latency barely improves.</span>
+      <span class="ctxt">Prediction to test: <span class="term">max(trigger_interval, batch_processing_time)</span> says Spark's floor should stop falling once <span class="ink-mono">trigger &lt; batch_processing_time</span> &mdash; at that point you're paying for offset discovery, planning, scheduling, and commit on every batch, and shrinking the trigger further just burns CPU without buying latency. Where exactly does that happen on this machine?</span>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
-  <div class="meta"><span>EXPERIMENT</span><span>Spark trigger sweep</span></div>
+  <div class="meta"><span>EXERCISE</span><span>push past the sweep</span></div>
 </section>
 
 <!-- ─── 14 · SCENARIO 1 ─────────────────────────────────── -->
