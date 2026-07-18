@@ -180,8 +180,38 @@ got close to exceeding the 2s trigger at these rates, so we never triggered
 the `max(trigger_interval, batch_processing_time)` floor shifting. The
 batching-amortizes-overhead trade-off is real in principle, but seeing it on
 a single laptop needs either much higher sustained load or a much tighter
-trigger than tested here — a dedicated demo for exactly that is on the
-roadmap (see the trigger-floor experiment).
+trigger than tested here — see the trigger-floor demo below, which forces
+the shift directly instead of hoping throughput gets there organically.
+
+## Micro-demos
+
+Three small, focused scripts that each isolate one specific claim from the
+slides and measure it directly, instead of inferring it from the full
+Spark-vs-Flink comparison where several effects are entangled.
+
+```bash
+uv run python src/demo_trigger_floor.py       # ~1 min, no Kafka needed
+uv run python src/demo_watermark_bound.py     # ~5 min, Flink only
+uv run python src/demo_idle_source_stall.py   # ~3 min, Flink only
+```
+
+- **`demo_trigger_floor.py`** — proves `latency floor = max(trigger_interval,
+  batch_processing_time)` directly from Spark's own `recentProgress`
+  telemetry. Uses Spark's built-in `rate` source (no Kafka) with a
+  controllable artificial per-batch delay so the effect is reproducible
+  regardless of host speed. Measured: same 500ms trigger, light work floors
+  at ~401ms (trigger-bound), heavy work floors at ~1,707ms (batch-bound).
+- **`demo_watermark_bound.py`** — proves Flink's latency floor tracks the
+  watermark bound, not a trigger. Flink-only, sweeps `--watermark-seconds`
+  across `[1, 5, 10]`. Measured: 3.1s / 5.5s / 12.2s — monotonically
+  increasing with the watermark, roughly in step with it.
+- **`demo_idle_source_stall.py`** — the classic Flink gotcha: a
+  bounded-out-of-orderness watermark only advances on new records, so a
+  quiet source freezes it and pending windows never fire — silently, no
+  error. Produces a burst then goes quiet; compares `with_idleness(1s)`
+  against no idleness handling. Measured: 2/2 windows closed with idleness,
+  1/2 without — the trailing window stalled for the entire 30s observation
+  window.
 
 ## Optional: Flink cluster mode
 
@@ -202,9 +232,16 @@ local mode by default, so cluster mode requires a manual submit for now).
 - `src/setup_flink_venv.py` — one-time setup of the Python 3.11 PyFlink venv.
 - `src/producer.py` — controlled-rate order generator with embedded timestamps.
 - `src/spark_pipeline.py` — Spark Structured Streaming with latency instrumentation.
-- `src/flink_pipeline.py` — PyFlink DataStream equivalent.
+- `src/flink_pipeline.py` — PyFlink DataStream equivalent. `--watermark-seconds`
+  and `--disable-idleness` exist for the micro-demos below, not normal runs.
 - `src/analyze_latency.py` — consumes result topics, computes CDFs, writes report.
 - `src/benchmark.py` — starts both pipelines, waits for readiness, then
   produces + drains + analyzes.
 - `src/throughput_sweep.py` — runs the benchmark across several producer
   rates and plots measured throughput vs. latency (`data/throughput_sweep.png`).
+- `src/demo_trigger_floor.py` — proves the Spark trigger/batch-time floor
+  claim directly (see Micro-demos below).
+- `src/demo_watermark_bound.py` — proves the Flink watermark floor claim
+  directly.
+- `src/demo_idle_source_stall.py` — demonstrates the idle-source watermark
+  stall gotcha.

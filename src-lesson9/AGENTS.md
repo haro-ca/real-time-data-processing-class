@@ -44,6 +44,13 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   analyzes.
 - `src/throughput_sweep.py` — runs the benchmark across several producer
   rates, plots measured throughput vs. p50 processing latency per engine.
+- `src/demo_trigger_floor.py` — self-contained (Spark `rate` source, no
+  Kafka), proves `max(trigger_interval, batch_processing_time)` from Spark's
+  own `recentProgress` telemetry.
+- `src/demo_watermark_bound.py` — Flink only, sweeps `--watermark-seconds`
+  and shows latency tracks it directly.
+- `src/demo_idle_source_stall.py` — Flink only, shows a quiet source stalls
+  the watermark forever without `with_idleness()`.
 
 ## Conventions
 

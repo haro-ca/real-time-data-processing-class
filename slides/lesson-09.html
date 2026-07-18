@@ -690,7 +690,12 @@ uv run python src/producer.py --rate 50 --duration-seconds 240
 uv run python src/analyze_latency.py
 
 <span class="cm"># throughput vs. latency sweep (several rates, ~10-15 min):</span>
-uv run python src/throughput_sweep.py</div>
+uv run python src/throughput_sweep.py
+
+<span class="cm"># micro-demos — each isolates one claim and measures it directly:</span>
+uv run python src/demo_trigger_floor.py       <span class="cm"># ~1 min, no Kafka</span>
+uv run python src/demo_watermark_bound.py     <span class="cm"># ~5 min, Flink only</span>
+uv run python src/demo_idle_source_stall.py   <span class="cm"># ~3 min, Flink only</span></div>
     </div>
   </div>
   <hr class="rule" style="margin-bottom:0.7rem;">
