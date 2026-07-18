@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 *.so
 .venv/
+.venv-flink/
 venv/
 .env
 *.egg-info/
@@ -42,6 +43,12 @@ src-lesson7/ckpt/
 # Lesson 8 — generated produced count, progress log, and Spark checkpoints
 src-lesson8/data/
 src-lesson8/ckpt/
+# Lesson 9 — benchmark artifacts, checkpoints, downloaded Flink JARs, and venvs
+src-lesson9/data/
+src-lesson9/ckpt/
+src-lesson9/lib/
+src-lesson9/.venv-flink/
+src-lesson9/*.log
 *.duckdb
 *.duckdb.wal
 _tmp_load.csv

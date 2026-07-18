@@ -1,0 +1,45 @@
+# Lesson 9 — Kafka for the Spark vs. PyFlink latency benchmark.
+#
+# Both stream processors run on the HOST via uv/python:
+#   - Spark Structured Streaming (reused from Lessons 7-8)
+#   - PyFlink DataStream API (local mini-cluster, provided by apache-flink pip package)
+#
+# Flink is NOT a separate Docker service by default: running a Flink JobManager +
+# TaskManager plus Spark's JVM plus Kafka on a single laptop is heavy for a class
+# demo. The optional docker-compose.flink-cluster.yml file adds a Flink cluster
+# if you want to submit jobs there instead.
+#
+# Kafka is a single-node KRaft broker, exactly like Lesson 7, so the scripts and
+# slides (bootstrap=localhost:19092) work unchanged.
+
+services:
+  kafka:
+    image: apache/kafka:3.9.1
+    container_name: kafka-l9
+    ports: ["19092:19092"]
+    environment:
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-l9:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-l9:9092,EXTERNAL://localhost:19092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: -Xmx512m -Xms256m
+      CLUSTER_ID: L9LessonKafkaCluster1
+    volumes: ["kafka-l9-data:/var/lib/kafka/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+volumes:
+  kafka-l9-data:

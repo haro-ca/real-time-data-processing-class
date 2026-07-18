@@ -1,0 +1,30 @@
+# Optional Flink cluster for Lesson 9.
+#
+# By default PyFlink runs in local mini-cluster mode (apache-flink pip package),
+# which is enough for the benchmark and avoids an extra JVM on the host.
+# Use this file if you prefer to submit the PyFlink job to a standalone cluster.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.flink-cluster.yml up -d
+#
+# Then submit from the project directory:
+#   docker cp src/flink_pipeline.py flink-jobmanager-l9:/tmp/
+#   docker exec flink-jobmanager-l9 ./bin/flink run -py /tmp/flink_pipeline.py
+#
+# Inside the cluster the bootstrap address is kafka-l9:9092, not localhost:19092.
+
+services:
+  flink-jobmanager:
+    image: flink:1.19.1-scala_2.12-java11
+    container_name: flink-jobmanager-l9
+    ports: ["8081:8081"]
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager-l9
+    command: jobmanager
+
+  flink-taskmanager:
+    image: flink:1.19.1-scala_2.12-java11
+    container_name: flink-taskmanager-l9
+    depends_on: [flink-jobmanager]
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager-l9
+    command: taskmanager
