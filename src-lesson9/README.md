@@ -188,7 +188,7 @@ the shift directly instead of hoping throughput gets there organically.
 
 ```bash
 uv run python src/trigger_sweep.py
-uv run python src/trigger_sweep_extend.py   # adds 500ms and 250ms to an existing sweep
+uv run python src/trigger_sweep_extend.py   # edit NEW_TRIGGERS, adds points to an existing sweep
 ```
 
 Holds the rate fixed (50/s) and sweeps Spark's trigger interval, plotting each
@@ -197,14 +197,18 @@ can't push throughput hard enough to move latency on one laptop (see above),
 the trigger — a knob we set directly — is what reveals the micro-batch vs.
 streaming trade-off. This is the plot slide 5 now uses.
 `trigger_sweep_extend.py` reuses `trigger_sweep.py`'s own `run_round()`/
-`plot()` to add new trigger points to an existing `trigger_sweep.json`
-without re-running points already trusted. Full sweep takes ~20 minutes.
+`plot()` to add new trigger points to an existing `trigger_sweep.json`;
+already-measured triggers are skipped, so it's safe to re-run as you push
+further. Also writes `trigger_sweep_log.png`, a log-x-axis version — linear
+scale crams everything below 1s into an unreadable sliver near zero. Full
+sweep takes ~20 minutes; each extension round is ~3 minutes.
 
 **What we measured on this laptop** (rate 50/s, 10s window, 5s watermark,
 11-12 windows per point):
 
 | Spark trigger | Spark p50 | Flink p50 |
 |---|---|---|
+| 10ms  | 5.0s  | 8.2s |
 | 0.25s | 5.0s  | 7.9s |
 | 0.5s  | 6.0s  | 5.4s |
 | 1s    | 7.0s  | 7.5s |
@@ -213,11 +217,14 @@ without re-running points already trusted. Full sweep takes ~20 minutes.
 | 10s   | 20.0s | 7.2s |
 
 Spark's floor is `max(trigger_interval, batch_processing_time)`. Above ~1s
-it climbs almost linearly with the trigger, as expected. **Below 1s it keeps
-falling** — no plateau at 2s the way an earlier, unmeasured version of this
-README claimed — reaching 5.0s at a 250ms trigger, which is essentially the
-shared 5s watermark floor both engines are bounded by. At that point Spark's
-p50 is *lower* than Flink's in this run.
+it climbs almost linearly with the trigger, as expected. Below 1s it keeps
+falling — no plateau at 2s the way an earlier, unmeasured version of this
+README claimed — **and then it hits a real wall**: 10ms gives the exact same
+5.0s as 250ms, a 25x tighter trigger for zero improvement. That's not a
+per-batch-overhead ceiling; it's the shared 5s watermark floor neither engine
+can beat, confirmed by sitting dead flat across a 25x range once you're below
+it. At 250ms and 10ms, Spark's p50 is *lower* than Flink's in this run —
+don't read that as "Spark won," see the caveat below.
 
 Don't over-read that last part, though: **Flink's own numbers here are
 noisier than in `demo_watermark_bound.py`'s dedicated single-engine

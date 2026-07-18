@@ -50,9 +50,14 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   other jobs (see Conventions).
 - `src/trigger_sweep_extend.py` — adds new trigger points to an existing
   `trigger_sweep.json` by importing and reusing `trigger_sweep.run_round()`/
-  `plot()` directly, so points already trusted aren't re-run. Used to push
-  the sweep below 1s (found Spark's floor keeps falling to ~5s at a 250ms
-  trigger — no plateau at 2s the way the original unmeasured claim assumed).
+  `plot()` directly; dedupes against already-measured triggers, so it's
+  safe to re-run repeatedly while pushing further. Also has `plot_log()`
+  (writes `trigger_sweep_log.png`, log-x-axis) since a linear axis hides
+  everything below 1s. Used to push the sweep to 10ms and found the real
+  floor: Spark's p50 is identical (5.0s) at 10ms and 250ms — a 25x tighter
+  trigger for zero improvement, confirming the floor is the shared 5s
+  watermark, not per-batch overhead the way the original unmeasured claim
+  assumed.
 - `src/demo_trigger_floor.py` — self-contained (Spark `rate` source, no
   Kafka), proves `max(trigger_interval, batch_processing_time)` from Spark's
   own `recentProgress` telemetry.
