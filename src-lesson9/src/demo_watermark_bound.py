@@ -86,17 +86,29 @@ def run_round(watermark_seconds: int) -> list[float]:
 
 
 def plot(results: dict[int, list[float]], path: Path) -> None:
-    fig, axes = plt.subplots(1, len(results), figsize=(5.5 * len(results), 5), sharey=False)
+    # Shared y-axis on purpose: each panel auto-scaling independently made
+    # every panel's bars fill the same visual space regardless of actual
+    # magnitude, hiding the real story (latency growing across panels). A
+    # shared axis makes the 1s panel's bars visibly short next to the 10s
+    # panel's tall ones. Per-window variation here is genuinely tiny (a few
+    # ms out of several thousand — Flink is very deterministic under this
+    # steady, uncontended load), so value labels make the real numbers
+    # legible even though the bars look almost flat within a panel.
+    y_max = max(max(d) for d in results.values()) * 1.2
+
+    fig, axes = plt.subplots(1, len(results), figsize=(5.5 * len(results), 5), sharey=True)
     for ax, (watermark_seconds, durations) in zip(axes, results.items()):
         line_ms = watermark_seconds * 1000
-        ax.bar(range(len(durations)), durations, color="#5cd6e8")
+        bars = ax.bar(range(len(durations)), durations, color="#5cd6e8")
+        ax.bar_label(bars, labels=[f"{d:,.0f}" for d in durations], padding=3, fontsize=8)
         ax.axhline(line_ms, color="#ff6e54", linestyle="--", linewidth=2, label=f"watermark = {watermark_seconds}s")
+        ax.set_ylim(0, y_max)
         ax.set_title(f"watermark = {watermark_seconds}s")
         ax.set_xlabel("window #")
         ax.set_ylabel("measured processing latency (ms)")
-        ax.legend()
+        ax.legend(loc="upper left")
         ax.grid(True, alpha=0.3)
-    fig.suptitle("Flink's latency floor tracks the watermark bound, window by window")
+    fig.suptitle("Flink's latency floor tracks the watermark bound (shared y-axis across panels)")
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     print(f"chart saved to {path}")
