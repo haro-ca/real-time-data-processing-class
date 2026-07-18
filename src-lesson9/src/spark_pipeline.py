@@ -44,14 +44,15 @@ READY_MARKER = DATA_DIR / "spark.ready"
 
 def main():
     parser = argparse.ArgumentParser(description="Spark latency benchmark for L9")
-    parser.add_argument("--trigger", type=int, default=2, help="micro-batch trigger interval in seconds")
+    parser.add_argument("--trigger", type=float, default=2, help="micro-batch trigger interval in seconds (fractional allowed, e.g. 0.5)")
     parser.add_argument("--max-time", type=int, default=0, help="stop after N seconds (0 = run until Ctrl-C)")
     parser.add_argument("--window-seconds", type=int, default=WINDOW_SECONDS, help="tumbling window size")
     args = parser.parse_args()
+    trigger_ms = round(args.trigger * 1000)
 
     banner(
         "Spark Structured Streaming benchmark",
-        f"trigger interval: {args.trigger}s",
+        f"trigger interval: {args.trigger}s ({trigger_ms}ms)",
         "watermark:        5s",
         f"window:           {args.window_seconds}s",
         f"output topic:     {SPARK_RESULTS_TOPIC}",
@@ -108,7 +109,7 @@ def main():
         .option("kafka.bootstrap.servers", BOOTSTRAP)
         .option("topic", SPARK_RESULTS_TOPIC)
         .option("checkpointLocation", str(checkpoint))
-        .trigger(processingTime=f"{args.trigger} seconds")
+        .trigger(processingTime=f"{trigger_ms} milliseconds")
         .start()
     )
 

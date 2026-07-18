@@ -75,7 +75,7 @@ def main():
     parser.add_argument("--rate", type=int, default=50, help="events per second")
     parser.add_argument("--produce-duration", type=int, default=240, help="producer runtime in seconds")
     parser.add_argument("--window-seconds", type=int, default=15, help="tumbling window size")
-    parser.add_argument("--trigger", type=int, default=2, help="Spark trigger interval in seconds")
+    parser.add_argument("--trigger", type=float, default=2, help="Spark trigger interval in seconds (fractional allowed, e.g. 0.5)")
     parser.add_argument(
         "--warmup-seconds", type=int, default=15,
         help="wait this long after both pipelines report ready before starting the producer",

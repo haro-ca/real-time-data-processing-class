@@ -48,6 +48,11 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   interval, plotting Spark vs. Flink p50 latency (the slide 5 plot). Runs on
   an isolated topic/checkpoint/data namespace so it can share the broker with
   other jobs (see Conventions).
+- `src/trigger_sweep_extend.py` — adds new trigger points to an existing
+  `trigger_sweep.json` by importing and reusing `trigger_sweep.run_round()`/
+  `plot()` directly, so points already trusted aren't re-run. Used to push
+  the sweep below 1s (found Spark's floor keeps falling to ~5s at a 250ms
+  trigger — no plateau at 2s the way the original unmeasured claim assumed).
 - `src/demo_trigger_floor.py` — self-contained (Spark `rate` source, no
   Kafka), proves `max(trigger_interval, batch_processing_time)` from Spark's
   own `recentProgress` telemetry.
@@ -107,6 +112,24 @@ Lessons 7-8) specifically to accumulate enough closed windows per engine
   close per engine (aim for 15-30+) for percentiles to mean anything. 5-minute
   windows over a 10-minute run only produce ~2 samples per engine, which is a
   connect-the-dots line, not a distribution.
+- `--trigger` is a float everywhere (`spark_pipeline.py`, `benchmark.py`) so
+  sub-second values like `0.5`/`0.25` work — Spark's own trigger string is
+  built in milliseconds internally. `--drain-seconds`/`--warmup-seconds`/
+  `--produce-duration` are still `int`-only; a caller that derives one of
+  those from a fractional trigger (e.g. `20 + trigger`) must round it before
+  passing it through, or the child `benchmark.py` process dies with an
+  argparse error. This bit `trigger_sweep.py`'s `run_round()` once: the
+  subprocess failure went unchecked, so it silently read the previous
+  round's stale `latency_report.json` and returned it as if valid — three
+  different trigger values ended up with byte-identical "measurements"
+  before it was caught. `run_round()` now raises on a nonzero returncode
+  instead of proceeding to read the report.
+- Two Spark `local[*]` + Flink mini-cluster pairs running concurrently on the
+  same machine (e.g. a manual test in one terminal while a sweep script runs
+  in another) contend for CPU and *will* skew latency measurements even
+  though topic isolation (`L9_TOPIC_PREFIX` etc.) prevents data corruption.
+  Check `ps aux` for other `spark_pipeline.py`/`flink_pipeline.py` processes
+  before starting an automated multi-round script.
 
 ## How to verify
 

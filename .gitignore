@@ -46,6 +46,7 @@ src-lesson8/ckpt/
 # Lesson 9 — benchmark artifacts, checkpoints, downloaded Flink JARs, and venvs
 src-lesson9/data/
 src-lesson9/ckpt/
+src-lesson9/ckpt-*/
 src-lesson9/lib/
 src-lesson9/.venv-flink/
 src-lesson9/*.log

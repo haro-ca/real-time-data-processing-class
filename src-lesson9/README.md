@@ -158,8 +158,9 @@ suspect the same thing — check that Kafka topics were reset (`setup_topics.py
 --reset`) and that both pipelines were live before producing.
 
 Try `--trigger 1`, `--trigger 5`, and `--trigger 10` to see how Spark's curve
-shifts. Diminishing returns appear below ~2 seconds: the per-batch planning and
-commit overhead starts to dominate.
+shifts. There is no plateau below ~2 seconds — see "Trigger interval vs.
+latency" below for the full sweep down to 250ms, which turned out to
+contradict that assumption.
 
 ## Throughput vs. latency
 
@@ -187,30 +188,47 @@ the shift directly instead of hoping throughput gets there organically.
 
 ```bash
 uv run python src/trigger_sweep.py
+uv run python src/trigger_sweep_extend.py   # adds 500ms and 250ms to an existing sweep
 ```
 
-Holds the rate fixed (50/s) and sweeps Spark's trigger interval `[1, 2, 5,
-10]s`, plotting each engine's median processing latency against the trigger.
-Because the producer can't push throughput hard enough to move latency on one
-laptop (see above), the trigger — a knob we set directly — is what reveals the
-micro-batch vs. streaming trade-off. This is the plot slide 5 now uses. Takes
-~15 minutes.
+Holds the rate fixed (50/s) and sweeps Spark's trigger interval, plotting each
+engine's median processing latency against the trigger. Because the producer
+can't push throughput hard enough to move latency on one laptop (see above),
+the trigger — a knob we set directly — is what reveals the micro-batch vs.
+streaming trade-off. This is the plot slide 5 now uses.
+`trigger_sweep_extend.py` reuses `trigger_sweep.py`'s own `run_round()`/
+`plot()` to add new trigger points to an existing `trigger_sweep.json`
+without re-running points already trusted. Full sweep takes ~20 minutes.
 
 **What we measured on this laptop** (rate 50/s, 10s window, 5s watermark,
 11-12 windows per point):
 
 | Spark trigger | Spark p50 | Flink p50 |
 |---|---|---|
-| 1s  | 7.0s  | 7.5s |
-| 2s  | 8.0s  | 7.7s |
-| 5s  | 15.0s | 7.1s |
-| 10s | 20.0s | 7.2s |
+| 0.25s | 5.0s  | 7.9s |
+| 0.5s  | 6.0s  | 5.4s |
+| 1s    | 7.0s  | 7.5s |
+| 2s    | 8.0s  | 7.7s |
+| 5s    | 15.0s | 7.1s |
+| 10s   | 20.0s | 7.2s |
 
-Spark's floor is `max(trigger_interval, batch_processing_time)`, so its latency
-climbs almost linearly with the trigger; Flink has no trigger — its floor is
-the watermark bound, so it stays flat. At a 1s trigger the two nearly tie,
-which is the real headline: micro-batch isn't inherently slower, it trades
-latency for the batching efficiency that pays off at high throughput.
+Spark's floor is `max(trigger_interval, batch_processing_time)`. Above ~1s
+it climbs almost linearly with the trigger, as expected. **Below 1s it keeps
+falling** — no plateau at 2s the way an earlier, unmeasured version of this
+README claimed — reaching 5.0s at a 250ms trigger, which is essentially the
+shared 5s watermark floor both engines are bounded by. At that point Spark's
+p50 is *lower* than Flink's in this run.
+
+Don't over-read that last part, though: **Flink's own numbers here are
+noisier than in `demo_watermark_bound.py`'s dedicated single-engine
+measurement** (5.4-7.9s here vs. a tight ~5.6s there, same watermark and
+window). Both engines run concurrently in every round of this sweep, and
+tightening Spark's trigger increases Spark's own CPU demand (more frequent
+planning/scheduling), which can perturb Flink's measured latency as a
+same-machine side effect — not a change in Flink's own architecture. Treat
+Spark's downward trend as the reliable finding (it's large, monotonic, and
+matches theory); treat the exact crossover point against Flink as noisier
+than it looks on this chart.
 
 **Running beside another job (topic/checkpoint isolation).**
 `trigger_sweep.py` resets Kafka topics and checkpoints between rounds, which

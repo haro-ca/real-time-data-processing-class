@@ -72,11 +72,16 @@ def reset_state() -> None:
         shutil.rmtree(ckpt)
 
 
-def run_round(trigger: int) -> dict:
+def run_round(trigger: float) -> dict:
     reset_state()
     # The final window can't close until the watermark (5s) advances past its
     # end and the next trigger fires, so drain has to outlast both.
-    drain_seconds = 20 + trigger
+    # --drain-seconds is int-only on benchmark.py, so round up rather than
+    # pass a float through (a float here previously crashed the subprocess
+    # with an argparse error that went unchecked below — see the returncode
+    # check just after this).
+    import math
+    drain_seconds = 20 + math.ceil(trigger)
     cmd = [
         sys.executable, "src/benchmark.py",
         "--rate", str(RATE),
@@ -89,7 +94,10 @@ def run_round(trigger: int) -> dict:
     print(f"\n>>> trigger={trigger}s: {' '.join(cmd)}", file=sys.stderr)
     result = subprocess.run(cmd, cwd=ROOT, env=RUN_ENV)
     if result.returncode != 0:
-        print(f"WARNING: benchmark run failed for trigger={trigger} (exit {result.returncode})", file=sys.stderr)
+        raise RuntimeError(
+            f"benchmark run failed for trigger={trigger} (exit {result.returncode}) — "
+            "not reading latency_report.json, it would be stale data from a previous round"
+        )
 
     report = json.loads((RUN_DATA_DIR / "latency_report.json").read_text())
 
